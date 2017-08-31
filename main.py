@@ -1,8 +1,8 @@
 from config import train_config, arch
-from models import get_model
+from lib.models import get_model
+from lib.train_val import train, run
 from util.data.load_data import load_data
 from util.misc import get_optimizers
-from util.train_val import train, run
 from util.plotting import init_plot, save_env
 from util.logs import init_log, save_checkpoint
 import time
