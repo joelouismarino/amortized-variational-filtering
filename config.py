@@ -1,6 +1,7 @@
 # training set-up
 train_config = {
-    'dataset': 'CIFAR_10',
+    'url_file_path': '/home/joe/Research/generalized_filtering/data/youtube_8m_urls/Science.txt',
+    'save_dir': '/media/joe/SSD/datasets/temp',
     'output_distribution': 'gaussian',
     'batch_size': 256,
     'n_iterations': 1,
@@ -13,7 +14,7 @@ train_config = {
 }
 
 # model architecture
-arch = {
+model_config = {
     'encoding_form': ['posterior'],
     'concat_variables': True,
     'variable_update_form': 'direct',

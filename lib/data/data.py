@@ -134,7 +134,7 @@ def online_generalized_coord_converter(video_file_path, n_orders_motion, video_w
 
 
 if __name__ == "__main__":
-    video_path_extension = '3OFMvxyC-zs'
+    video_path_extension = 'URSOqWtLix4'
     n_frames = 200
     n_orders_motion = 5
     download_video(video_path_extension, 'temp')
