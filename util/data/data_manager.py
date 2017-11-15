@@ -44,24 +44,16 @@ class DataManager(object):
         url_index = 0
         if shuffle_urls:
             shuffle(self.url_list)
-        print 'Starting data manager while loop...'
         while True:
-            print 'Current URL queue: ', self.url_queue
             if url_index >= self.num_urls:
                 url_index = 0
                 if shuffle_urls:
                     shuffle(self.url_list)
             if len(self.url_queue) < self.queue_length:
-                print 'Adding new item to the queue...'
                 success = False
                 while not success:
                     current_url = self.url_list[url_index]
-                    print 'Trying URL ' + current_url
                     success = self.add(current_url)
-                    if success:
-                        print 'Successful'
-                    else:
-                        print 'Unsuccessful'
                     url_index += 1
             if self.stop_loop:
                 break

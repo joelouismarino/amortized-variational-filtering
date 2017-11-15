@@ -32,9 +32,7 @@ class VideoLoader(object):
                 time.sleep(1)
             # retrieve the next URL and create a video reader
             url = self.data_manager.url_queue[-1]
-            print 'Found URL ' + url
             url = os.path.join(self.download_dir, url + '.mp4')
-            print 'Full path: ' + url
             vid_reader = VideoReader(url, transforms=self.transforms)
             yield vid_reader
 

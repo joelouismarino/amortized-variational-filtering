@@ -5,7 +5,7 @@ from distributions import DiagonalGaussian, Bernoulli
 from modules import Conv, ConvLatentVariable
 
 
-class ConvLVM(nn.Module):
+class ConvDLVM(nn.Module):
 
     def __init__(self, arch):
 

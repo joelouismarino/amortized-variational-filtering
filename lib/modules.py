@@ -4,8 +4,7 @@ from torch.nn import init
 from torch.autograd import Variable
 from distributions import DiagonalGaussian, PointEstimate
 
-# todo: add inverse auto-regressive flow to GaussianVariable
-# todo: get conv modules working
+
 
 
 class Dense(nn.Module):

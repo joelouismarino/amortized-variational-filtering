@@ -5,6 +5,7 @@ PyTorch implementation of generalized filtering
 - [x] Data loading pipeline
 - [ ] Multi-threaded data loading (multiple videos)
 - [ ] Implement other data loading options (directory of files)
+- [ ] Implement data transformations (flip, crop, etc.)
 
 ## Model To-Do:
 - [ ] Re-implement low-level modules.
