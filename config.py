@@ -2,26 +2,25 @@
 train_config = {
     'url_file_path': '/home/joe/Research/generalized_filtering/data/youtube_8m_urls/Science.txt',
     'save_dir': '/media/joe/SSD/datasets/temp',
-    'output_distribution': 'gaussian',
-    'batch_size': 256,
-    'n_iterations': 1,
     'encoder_learning_rate': 0.0002,
     'decoder_learning_rate': 0.0002,
     'kl_min': 0,
     'cuda_device': 1,
     'display_iter': 10,
-    'resume_experiment': None
+    'resume_experiment_dir': None
 }
 
 # model architecture
 model_config = {
     'encoding_form': ['posterior'],
-    'concat_variables': True,
-    'variable_update_form': 'direct',
-    'whiten_input': True,
+    'concat_levels': True,
+    'transform_input': False,
     'constant_prior_variances': True,
     'learn_top_prior': False,
-    'top_size': 25,
+
+    'output_distribution': 'gaussian',
+
+    'normalizing_flows': True,
 
     'n_latent': [128],
 

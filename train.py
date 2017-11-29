@@ -1,5 +1,6 @@
 from util.data.video_loader import VideoLoader
 from config import train_config, model_config
+from lib.models import ConvDLVM
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -7,7 +8,7 @@ import matplotlib.pyplot as plt
 video_loader = VideoLoader(train_config['url_file_path'], train_config['save_dir'])
 
 # create the model
-model = None
+model = ConvDLVM(model_config)
 
 # create the optimizers
 optimizers = None
@@ -16,7 +17,7 @@ img = None
 for video in video_loader:
     model.reset_state()
     for frame_index, frame in enumerate(video):
-        train(model, frame, optimizers)
+        #train(model, frame, optimizers)
 
         # frame = np.transpose(frame.numpy(), (1, 2, 0)) / 255.
         # if img is None:

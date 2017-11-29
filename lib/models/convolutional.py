@@ -2,99 +2,82 @@ import torch
 import torch.nn as nn
 from torch.autograd import Variable
 from distributions import DiagonalGaussian, Bernoulli
-from modules import Conv, ConvLatentVariable
+from modules.convolutional import Convolutional, ConvolutionalNetwork
+from modules.latent_levels import ConvolutionalLatentLevel
 
 
 class ConvDLVM(nn.Module):
+    """
+    Convolutional deep latent variable model.
+    """
+    def __init__(self, model_config):
 
-    def __init__(self, arch):
+        self.encoding_form = model_config['encoding_form']
+        self.constant_variances = model_config['constant_prior_variances']
+        self.concat_variables = model_config['concat_levels']
+        self.output_distribution = model_config['output_distribution']
 
-        self.encoding_form = arch['encoding_form']
-        self.constant_variances = arch['constant_prior_variances']
-        self.batch_size = train_config['batch_size']
-        self.kl_min = train_config['kl_min']
-        self.concat_variables = arch['concat_variables']
-        self.top_size = arch['top_size']
-        self.input_size = np.prod(tuple(next(iter(data_loader))[0].size()[1:])).astype(int)
-        assert train_config['output_distribution'] in ['bernoulli', 'gaussian'], 'Output distribution not recognized.'
-        self.output_distribution = train_config['output_distribution']
-        self.reconstruction = None
-
-        # construct the model
-        self.levels = [None for _ in range(len(arch['n_latent']))]
+        self.levels = nn.ModuleList([])
         self.output_decoder = self.output_dist = self.mean_output = self.log_var_output = self.trainable_log_var = None
-        self.__construct__(arch)
+        self._construct(model_config)
 
-        self.whitening_matrix = self.inverse_whitening_matrix = self.data_mean = None
-        if arch['whiten_input']:
-            self.whitening_matrix, self.inverse_whitening_matrix, self.data_mean = self.calculate_whitening_matrix(data_loader)
+    def _construct(self, model_config):
 
-        self._cuda_device = None
-        if train_config['cuda_device'] is not None:
-            self.cuda(train_config['cuda_device'])
-
-    def __construct__(self, arch):
-        """
-        Construct the model from the architecture specification.
-        """
-
-        # these are the same across all latent levels
-        encoding_form = arch['encoding_form']
-        variable_update_form = arch['variable_update_form']
-        const_prior_var = arch['constant_prior_variances']
+        # encode samples, gradients, errors, etc.
+        encoding_form = model_config['encoding_form']
 
         encoder_arch = {}
-        encoder_arch['non_linearity'] = arch['non_linearity_enc']
-        encoder_arch['connection_type'] = arch['connection_type_enc']
-        encoder_arch['batch_norm'] = arch['batch_norm_enc']
-        encoder_arch['weight_norm'] = arch['weight_norm_enc']
-        encoder_arch['dropout'] = arch['dropout_enc']
+        encoder_arch['non_linearity'] = model_config['non_linearity_enc']
+        encoder_arch['connection_type'] = model_config['connection_type_enc']
+        encoder_arch['batch_norm'] = model_config['batch_norm_enc']
+        encoder_arch['weight_norm'] = model_config['weight_norm_enc']
+        encoder_arch['dropout'] = model_config['dropout_enc']
 
         decoder_arch = {}
-        decoder_arch['non_linearity'] = arch['non_linearity_dec']
-        decoder_arch['connection_type'] = arch['connection_type_dec']
-        decoder_arch['batch_norm'] = arch['batch_norm_dec']
-        decoder_arch['weight_norm'] = arch['weight_norm_dec']
-        decoder_arch['dropout'] = arch['dropout_dec']
+        decoder_arch['non_linearity'] = model_config['non_linearity_dec']
+        decoder_arch['connection_type'] = model_config['connection_type_dec']
+        decoder_arch['batch_norm'] = model_config['batch_norm_dec']
+        decoder_arch['weight_norm'] = model_config['weight_norm_dec']
+        decoder_arch['dropout'] = model_config['dropout_dec']
 
-        # construct a DenseLatentLevel for each level of latent variables
-        for level in range(len(arch['n_latent'])):
+        # construct each level of latent variables
+        for level in range(len(model_config['n_latent'])):
 
             # get specifications for this level's encoder and decoder
-            encoder_arch['n_in'] = self.encoder_input_size(level, arch)
-            encoder_arch['n_units'] = arch['n_units_enc'][level]
-            encoder_arch['n_layers'] = arch['n_layers_enc'][level]
+            encoder_arch['n_in'] = self.encoder_input_size(level, model_config)
+            encoder_arch['n_units'] = model_config['n_units_enc'][level]
+            encoder_arch['n_layers'] = model_config['n_layers_enc'][level]
 
-            decoder_arch['n_in'] = self.decoder_input_size(level, arch)
-            decoder_arch['n_units'] = arch['n_units_dec'][level+1]
-            decoder_arch['n_layers'] = arch['n_layers_dec'][level+1]
+            decoder_arch['n_in'] = self.decoder_input_size(level, model_config)
+            decoder_arch['n_units'] = model_config['n_units_dec'][level+1]
+            decoder_arch['n_layers'] = model_config['n_layers_dec'][level+1]
 
-            n_latent = arch['n_latent'][level]
-            n_det = [arch['n_det_enc'][level], arch['n_det_dec'][level]]
+            n_latent = model_config['n_latent'][level]
+            n_det = [model_config['n_det_enc'][level], model_config['n_det_dec'][level]]
 
-            learn_prior = True if arch['learn_top_prior'] else (level != len(arch['n_latent'])-1)
+            learn_prior = True if model_config['learn_top_prior'] else (level != len(model_config['n_latent'])-1)
 
-            self.levels[level] = DenseLatentLevel(self.batch_size, encoder_arch, decoder_arch, n_latent, n_det,
-                                                  encoding_form, const_prior_var, variable_update_form, learn_prior)
+            self.levels.append(DenseLatentLevel(self.batch_size, encoder_arch, decoder_arch, n_latent, n_det,
+                                                  encoding_form, const_prior_var, variable_update_form, learn_prior))
 
         # construct the output decoder
-        decoder_arch['n_in'] = self.decoder_input_size(-1, arch)
-        decoder_arch['n_units'] = arch['n_units_dec'][0]
-        decoder_arch['n_layers'] = arch['n_layers_dec'][0]
+        decoder_arch['n_in'] = self.decoder_input_size(-1, model_config)
+        decoder_arch['n_units'] = model_config['n_units_dec'][0]
+        decoder_arch['n_layers'] = model_config['n_layers_dec'][0]
         self.output_decoder = MultiLayerPerceptron(**decoder_arch)
 
         # construct the output distribution
         if self.output_distribution == 'bernoulli':
             self.output_dist = Bernoulli(None)
-            self.mean_output = Dense(arch['n_units_dec'][0], self.input_size, non_linearity='sigmoid', weight_norm=arch['weight_norm_dec'])
+            self.mean_output = Dense(model_config['n_units_dec'][0], self.input_size, non_linearity='sigmoid', weight_norm=model_config['weight_norm_dec'])
         elif self.output_distribution == 'gaussian':
             self.output_dist = DiagonalGaussian(None, None)
-            non_lin = 'linear' if arch['whiten_input'] else 'sigmoid'
-            self.mean_output = Dense(arch['n_units_dec'][0], self.input_size, non_linearity=non_lin, weight_norm=arch['weight_norm_dec'])
+            non_lin = 'linear' if model_config['whiten_input'] else 'sigmoid'
+            self.mean_output = Dense(model_config['n_units_dec'][0], self.input_size, non_linearity=non_lin, weight_norm=model_config['weight_norm_dec'])
             if self.constant_variances:
                 self.trainable_log_var = Variable(torch.zeros(self.input_size), requires_grad=True)
             else:
-                self.log_var_output = Dense(arch['n_units_dec'][0], self.input_size, weight_norm=arch['weight_norm_dec'])
+                self.log_var_output = Dense(model_config['n_units_dec'][0], self.input_size, weight_norm=model_config['weight_norm_dec'])
 
     def encoder_input_size(self, level_num, arch):
         """Calculates the size of the encoding input to a level."""
@@ -138,27 +121,6 @@ class ConvDLVM(nn.Module):
             for level in range(level_num+2, len(arch['n_latent'])):
                 decoder_size += (arch['n_latent'][level] + arch['n_det_dec'][level])
         return decoder_size
-
-    def calculate_whitening_matrix(self, data_loader, n_examples=50000):
-        """Calculates and returns the whitening matrix for the training data."""
-        print 'Calculating whitening matrix...'
-        n = 0
-        batch_size = next(iter(data_loader))[0].size()[0]
-        train_data = torch.zeros(batch_size * int(n_examples / batch_size), self.input_size)
-        for batch, _ in data_loader:
-            if n >= train_data.shape[0]:
-                break
-            train_data[n:n+batch.shape[0]] = batch.view(batch_size, -1)
-            n += batch_size
-        train_data = train_data.numpy()
-        data_mean = np.mean(train_data, axis=0)
-        train_centered = train_data - data_mean
-        Sigma = np.dot(train_centered.T, train_centered) / train_centered.shape[0]
-        U, Lambda, _ = np.linalg.svd(Sigma)
-        ZCA_matrix = np.dot(U, np.dot(np.diag(1.0/np.sqrt(Lambda + 1e-5)), U.T))
-        ZCA_matrix_inv = np.linalg.inv(ZCA_matrix)
-        print 'Whitening matrix calculated.'
-        return Variable(torch.from_numpy(ZCA_matrix)), Variable(torch.from_numpy(ZCA_matrix_inv)), Variable(torch.from_numpy(data_mean))
 
     def process_input(self, input):
         if self.whitening_matrix is not None:
@@ -311,71 +273,3 @@ class ConvDLVM(nn.Module):
         for latent_level in self.levels:
             states.extend(list(latent_level.state_parameters()))
         return states
-
-    def eval(self):
-        """Puts the model into eval mode (affects batch_norm and dropout)."""
-        for latent_level in self.levels:
-            latent_level.eval()
-        self.output_decoder.eval()
-        self.mean_output.eval()
-        if self.output_distribution == 'gaussian':
-            if not self.constant_variances:
-                self.log_var_output.eval()
-
-    def train(self):
-        """Puts the model into train mode (affects batch_norm and dropout)."""
-        for latent_level in self.levels:
-            latent_level.train()
-        self.output_decoder.train()
-        self.mean_output.train()
-        if self.output_distribution == 'gaussian':
-            if not self.constant_variances:
-                self.log_var_output.train()
-
-    def random_re_init(self, re_init_fraction=0.05):
-        """Randomly re-initializes a fraction of all of the weights in the model."""
-        for level in self.levels:
-            level.random_re_init(re_init_fraction)
-        self.output_decoder.random_re_init(re_init_fraction)
-        self.mean_output.random_re_init(re_init_fraction)
-        if output_distribution == 'gaussian':
-            if not self.constant_variances:
-                self.log_var_output.random_re_init(re_init_fraction)
-
-    def cuda(self, device_id=0):
-        """Places the model on the GPU."""
-        self._cuda_device = device_id
-        for latent_level in self.levels:
-            latent_level.cuda(device_id)
-        self.output_decoder = self.output_decoder.cuda(device_id)
-        self.mean_output = self.mean_output.cuda(device_id)
-        self.output_dist.cuda(device_id)
-        if self.output_distribution == 'gaussian':
-            if self.constant_variances:
-                self.trainable_log_var = Variable(self.trainable_log_var.data.cuda(device_id), requires_grad=True)
-                self.log_var_output = self.trainable_log_var.unsqueeze(0).repeat(self.batch_size, 1)
-            else:
-                self.log_var_output = self.log_var_output.cuda(device_id)
-        if self.whitening_matrix is not None:
-            self.whitening_matrix = self.whitening_matrix.cuda(device_id)
-            self.inverse_whitening_matrix = self.inverse_whitening_matrix.cuda(device_id)
-            self.data_mean = self.data_mean.cuda(device_id)
-
-    def cpu(self):
-        """Places the model on the CPU."""
-        self._cuda_device = None
-        for latent_level in self.levels:
-            latent_level.cpu()
-        self.output_decoder = self.output_decoder.cpu()
-        self.mean_output = self.mean_output.cpu()
-        self.output_dist.cpu()
-        if self.output_distribution == 'gaussian':
-            if self.constant_variances:
-                self.trainable_log_var = self.trainable_log_var.cpu()
-                self.log_var_output = self.trainable_log_var.unsqueeze(0).repeat(self.batch_size, 1)
-            else:
-                self.log_var_output = self.log_var_output.cpu()
-        if self.whitening_matrix is not None:
-            self.whitening_matrix = self.whitening_matrix.cpu()
-            self.inverse_whitening_matrix = self.inverse_whitening_matrix.cpu()
-            self.data_mean = self.data_mean.cpu()
