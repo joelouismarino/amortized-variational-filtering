@@ -13,8 +13,10 @@ class DiagonalGaussian(nn.Module):
     def __init__(self, n_variables, mean=None, log_var=None):
         super(DiagonalGaussian, self).__init__()
         self.n_variables = n_variables
-        self.mean = mean if mean is not None else Variable(dt.zeros(1))
-        self.log_var = log_var if log_var is not None else Variable(dt.zeros(1))
+        self.mean_reset_value = Parameter(dt.zeros(1))
+        self.log_var_reset_value = Parameter(dt.zeros(1))
+        self.mean = mean
+        self.log_var = log_var
         self._sample = None
 
     def sample(self, n_samples=1, resample=False):
@@ -25,19 +27,16 @@ class DiagonalGaussian(nn.Module):
         :return: a (batch_size x n_samples x n_variables) tensor of samples
         """
         if self._sample is None or resample:
-            mean_shape = list(self.mean.data.shape)
-            if len(mean_shape) in [2, 4]:
-                mean_shape.insert(1, n_samples)
-            rand_normal = Variable(torch.randn(tuple(mean_shape)).type(dt.float))
             mean = self.mean
-            log_var = self.log_var
-            if len(mean_shape) == 2:
+            std = self.log_var.mul(0.5).exp_()
+            if len(self.mean.size()) == 2:
                 mean = mean.unsqueeze(1).repeat(1, n_samples, 1)
-                log_var = log_var.unsqueeze(1).repeat(1, n_samples, 1)
-            elif len(mean_shape) == 4:
+                std = std.unsqueeze(1).repeat(1, n_samples, 1)
+            elif len(self.mean.size()) == 4:
                 mean = mean.unsqueeze(1).repeat(1, n_samples, 1, 1, 1)
-                log_var = log_var.unsqueeze(1).repeat(1, n_samples, 1, 1, 1)
-            self._sample = mean + torch.exp(0.5 * log_var) * rand_normal
+                std = std.unsqueeze(1).repeat(1, n_samples, 1, 1, 1)
+            rand_normal = Variable(mean.data.new(mean.size()).normal_())
+            self._sample = rand_normal.mul_(std).add_(mean)
         return self._sample
 
     def log_prob(self, sample=None):
@@ -52,37 +51,60 @@ class DiagonalGaussian(nn.Module):
         n_samples = sample.data.shape[1]
         mean = self.mean
         log_var = self.log_var
-        if len(mean.data.shape) == 2:
+        if len(mean.size()) == 2:
             mean = mean.unsqueeze(1).repeat(1, n_samples, 1)
             log_var = log_var.unsqueeze(1).repeat(1, n_samples, 1)
-        elif len(mean.data.shape) == 4:
+        elif len(mean.size()) == 4:
             mean = mean.unsqueeze(1).repeat(1, n_samples, 1, 1, 1)
             log_var = log_var.unsqueeze(1).repeat(1, n_samples, 1, 1, 1)
-        return -0.5 * (log_var + np.log(2 * np.pi) + torch.pow(sample - mean, 2) / (torch.exp(log_var) + 1e-5))
 
-    def reset(self, mean_value, log_var_value):
+        # first_term = log_var.mul(-0.5)
+        # second_term = np.log(2 * np.pi)
+        # third_term_num = (sample.sub(mean)).pow_(2)
+        # third_term_den = log_var.exp().add(1e-5)
+        # third_term = third_term_num.div_(third_term_den)
+        # return first_term.add_(second_term).add_(third_term)
+        # first_two_terms = log_var + np.log(2 * np.pi)
+        # # second_term = np.log(2 * np.pi)
+        # third_term_num = (sample.sub(mean)).pow(2)
+        # third_term_den = log_var.exp().add(1e-5)
+        # third_term = third_term_num.div(third_term_den)
+        # return (first_two_terms.add(third_term)).mul(-0.5)
+        # return log_var.mul(-0.5).add_(np.log(2 * np.pi)).add_((sample.sub(mean).pow_(2)).div_(log_var.exp().add(1e-5))) # silent bug
+
+        # new_result = (log_var.add(np.log(2 * np.pi)).add((sample.sub(mean).pow(2)).div(log_var.exp().add(1e-5)))).mul(-0.5)
+        # new_result_2 = (log_var.add(np.log(2 * np.pi)).add_((sample.sub(mean).pow_(2)).div_(log_var.exp().add(1e-5)))).mul_(-0.5)
+        # old_result = -0.5 * (log_var + np.log(2 * np.pi) + torch.pow(sample - mean, 2) / (torch.exp(log_var) + 1e-5))
+        # print new_result.sum().data[0]
+        # print new_result_2.sum().data[0]
+        # print old_result.sum().data[0]
+        # import ipdb; ipdb.set_trace()
+        # return old_result
+        # return -0.5 * (log_var + np.log(2 * np.pi) + torch.pow(sample - mean, 2) / (torch.exp(log_var) + 1e-5))
+
+        return (log_var.add(np.log(2 * np.pi)).add_((sample.sub(mean).pow_(2)).div_(log_var.exp().add(1e-5)))).mul_(-0.5)
+
+    def reset(self, mean_value=None, log_var_value=None):
         self.reset_mean(mean_value)
         self.reset_log_var(log_var_value)
 
-    def reset_mean(self, value=None):
+    def reset_mean(self, value):
         """
         Resets the mean to a particular value.
         :param value: the value to set as the mean, defaults to zero
         :return: None
         """
-        assert self.mean is not None or value is not None, 'Mean is None.'
-        mean = value if value is not None else dt.zeros(self.mean.size())
+        mean = value if value is not None else self.mean_reset_value.data
         self.mean = Variable(mean, requires_grad=True)
         self._sample = None
 
-    def reset_log_var(self, value=None):
+    def reset_log_var(self, value):
         """
         Resets the log variance to a particular value.
         :param value: the value to set as the log variance, defaults to zero
         :return: None
         """
-        assert self.log_var is not None or value is not None, 'Log variance is None.'
-        log_var = value if value is not None else dt.zeros(self.log_var.size())
+        log_var = value if value is not None else self.log_var_reset_value.data
         self.log_var = Variable(log_var, requires_grad=True)
         self._sample = None
 
@@ -116,9 +138,9 @@ class DiagonalGaussian(nn.Module):
         """
         self.log_var.requires_grad = False
 
-    def state_parameters(self):
+    def parameters(self):
         """
-        Gets the state parameters for this variable.
+        Gets the distribution parameters.
         :return: tuple of mean and log variance
         """
         return self.mean, self.log_var

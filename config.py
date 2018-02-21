@@ -1,43 +1,48 @@
 # training set-up
 train_config = {
-    'url_file_path': '/home/joe/Research/generalized_filtering/data/youtube_8m_urls/Science.txt',
-    'save_dir': '/media/joe/SSD/datasets/temp',
-    'encoder_learning_rate': 0.0002,
-    'decoder_learning_rate': 0.0002,
-    'kl_min': 0,
+    'batch_size': 1,
+    'inference_iterations': 1,
+    'encoder_learning_rate': 0.00001,
+    'decoder_learning_rate': 0.00001,
     'cuda_device': 1,
-    'display_iter': 10,
-    'resume_experiment_dir': None
+    'resume_experiment_dir': None, # currently has no effect
+    'experiment_save_dir': '' # currently has no effect
+}
+
+data_config = {
+    'url_file_path': 'data/youtube_8m_urls/Science.txt',
+    'data_save_dir': '/media/joe/SSD/datasets/temp/',
+    'transform': True,
+    'resize': [96, 96]
 }
 
 # model architecture
 model_config = {
     'encoding_form': ['posterior'],
-    'concat_levels': True,
-    'transform_input': False,
-    'constant_prior_variances': True,
-    'learn_top_prior': False,
+    'concat_levels': False,
+    'transform_input': False, # currently has no effect
+    'constant_prior_variances': False,
+    'output_distribution': 'gaussian', # currently only supported distribution
+    'normalizing_flows': False, # currently has no effect
 
-    'output_distribution': 'gaussian',
+    'n_latent': [64],
 
-    'normalizing_flows': True,
+    'n_det_enc': [0,],
+    'n_det_dec': [0, 0],
 
-    'n_latent': [128],
+    'n_layers_enc': [3],
+    'n_layers_dec': [3, 2],
 
-    'n_det_enc': [0],
-    'n_det_dec': [0],
+    'n_filters_enc': [64],
+    'n_filters_dec': [64, 64],
 
-    'n_layers_enc': [2, 0],
-    'n_layers_dec': [2, 1],
-
-    'n_units_enc': [1024, 0],
-    'n_units_dec': [1024, 1],
+    'filter_size': [5, 5],
 
     'non_linearity_enc': 'elu',
     'non_linearity_dec': 'elu',
 
-    'connection_type_enc': 'sequential',
-    'connection_type_dec': 'sequential',
+    'connection_type_enc': 'highway',
+    'connection_type_dec': 'highway',
 
     'batch_norm_enc': False,
     'batch_norm_dec': False,

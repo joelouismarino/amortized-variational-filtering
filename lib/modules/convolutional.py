@@ -8,11 +8,11 @@ class Convolutional(nn.Module):
     Basic convolutional layer with optional batch normalization,
     non-linearity, weight normalization and dropout.
     """
-    def __init__(self, n_in, n_out, filter_size, non_linearity=None,
-                batch_norm=False, weight_norm=False, dropout=0., initialize='glorot_uniform'):
+    def __init__(self, n_in, n_filters, filter_size, non_linearity=None,
+                batch_norm=False, weight_norm=False, dropout=0., initialize='glorot_uniform', gate=False):
         super(Convolutional, self).__init__()
 
-        self.conv = nn.Conv2d(n_in, n_out, filter_size, padding=int(filter_size)/2)
+        self.conv = nn.Conv2d(n_in, n_filters, filter_size, padding=int(filter_size)/2)
         self.bn = None
         if batch_norm:
             self.bn = nn.BatchNorm2d(n_out)
@@ -64,6 +64,8 @@ class Convolutional(nn.Module):
             init.constant(self.bn.bias, 0.)
 
         init.constant(self.conv.bias, 0.)
+        if gate:
+            init.constant(self.conv.bias, -2.5)
 
     def forward(self, input):
         output = self.conv(input)

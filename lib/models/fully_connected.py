@@ -4,8 +4,8 @@ from torch.autograd import Variable
 import numpy as np
 
 from util.logs import load_model_checkpoint
-from distributions import DiagonalGaussian, Bernoulli
-from modules import Dense, MultiLayerPerceptron, DenseGaussianVariable, DenseLatentLevel
+from lib.modules.fully_connected import FullyConnected, FullyConnectedNetwork
+from lib.modules.latent_levels import FullyConnectedLatentLevel
 
 # todo: add support for multiple samples to encode, decode
 # todo: allow for printing out the model architecture

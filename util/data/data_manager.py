@@ -31,11 +31,12 @@ class DataManager(object):
             self.url_queue.insert(0, url)
         return success
 
-    def remove(self):
-        # removes the oldest URL from the queue
-        if len(self.url_queue) > 0:
-            url = self.url_queue.pop()
-            os.remove(os.path.join(self.download_dir, url + '.mp4'))
+    def remove(self, n_remove=1):
+        # removes the oldest n_remove URLs from the queue
+        if len(self.url_queue) >= n_remove:
+            for _ in range(n_remove):
+                url = self.url_queue.pop()
+                os.remove(os.path.join(self.download_dir, url + '.mp4'))
             return True
         return False
 

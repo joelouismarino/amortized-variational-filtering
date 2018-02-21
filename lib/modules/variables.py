@@ -7,222 +7,235 @@ from convolutional import Convolutional, ConvolutionalNetwork
 
 class FullyConnectedLatentVariable(nn.Module):
     """
-    Fully-connected Gaussian latent variable.
+    A fully-connected Gaussian latent variable. Attributes include a prior, approximate posterior,
+    and previous approximate posterior. Methods for generation, inference, and evalution
+    of errors, KL-divergence.
     """
-    def __init__(self, n_variables, n_orders_motion, const_prior_var, n_input,
-                 norm_flow, learn_prior=True, dynamic=False):
+    def __init__(self, n_variables, const_prior_var, n_input, norm_flow):
         super(FullyConnectedLatentVariable, self).__init__()
         self.n_variables = n_variables
-        self.n_orders_motion = n_orders_motion
-        self.learn_prior = learn_prior
-        self.dynamic = dynamic
 
-        self.posterior_mean = nn.ModuleList([FullyConnected(n_input[0], self.n_variables) for _ in range(self.n_orders_motion)])
-        self.posterior_mean_gate = nn.ModuleList([FullyConnected(n_input[0], self.n_variables, 'sigmoid') for _ in range(self.n_orders_motion)])
-        self.posterior_log_var = nn.ModuleList([FullyConnected(n_input[0], self.n_variables) for _ in range(self.n_orders_motion)])
-        self.posterior_log_var_gate = nn.ModuleList([FullyConnected(n_input[0], self.n_variables, 'sigmoid') for _ in range(self.n_orders_motion)])
+        self.posterior_mean = FullyConnected(n_input[0], self.n_variables)
+        self.posterior_mean_gate = FullyConnected(n_input[0], self.n_variables, 'sigmoid')
+        self.posterior_log_var = FullyConnected(n_input[0], self.n_variables)
+        self.posterior_log_var_gate = FullyConnected(n_input[0], self.n_variables, 'sigmoid')
 
-        if self.learn_prior:
-            self.prior_mean = nn.ModuleList([FullyConnected(n_input[1], self.n_variables) for _ in range(self.n_orders_motion)])
-            self.prior_log_var = None
-            if not const_prior_var:
-                self.prior_log_var = nn.ModuleList([FullyConnected(n_input[1], self.n_variables) for _ in range(self.n_orders_motion)])
+        self.prior_mean = FullyConnected(n_input[1], self.n_variables)
+        self.prior_log_var = None
+        if not const_prior_var:
+            self.prior_log_var = FullyConnected(n_input[1], self.n_variables)
 
-        self.posterior = nn.ModuleList([DiagonalGaussian(self.n_variables) for _ in range(self.n_orders_motion+1)])
-        self.prior = nn.ModuleList([DiagonalGaussian(self.n_variables) for _ in range(self.n_orders_motion)])
-        if self.learn_prior and const_prior_var:
+        self.previous_posterior = DiagonalGaussian(self.n_variables)
+        self.posterior = DiagonalGaussian(self.n_variables)
+        self.prior = DiagonalGaussian(self.n_variables)
+        if const_prior_var:
             self.prior.log_var_trainable()
 
-    def infer(self, input):
-        for motion_order in range(self.n_orders_motion):
-            mean_update = self.posterior_mean[motion_order](input) * self.posterior_mean_gate[motion_order](input)
-            mean = self.posterior[motion_order].mean.detach() + mean_update + self.posterior[motion_order+1].mean
-            self.posterior[motion_order].mean = mean
-            log_var_update = self.posterior_log_var[motion_order](input) * self.posterior_log_var_gate[motion_order](input)
-            log_var = self.posterior[motion_order].log_var.detach() + log_var_update
-            self.posterior[motion_order].log_var = log_var
-        return torch.cat([p.sample(resample=True) for p in list(self.posterior)[:-1]], dim=2)
+    def infer(self, input, n_samples):
+        # infer the approximate posterior
+        mean_update = self.posterior_mean(input) * self.posterior_mean_gate(input)
+        self.posterior.mean = self.posterior.mean.detach() + mean_update
+        log_var_update = self.posterior_log_var(input) * self.posterior_log_var_gate(input)
+        self.posterior.log_var = self.posterior.log_var.detach() + log_var_update
+        return self.posterior.sample(n_samples, resample=True)
 
-    def predict(self, input, generate):
-        samples = []
+    def generate(self, input, n_samples, gen):
         b, s, n = input.data.shape
         input = input.view(b * s, n)
-        for motion_order in range(self.n_orders_motion):
-            if self.learn_prior:
-                self.prior[motion_order].mean = self.prior_mean[motion_order](input).view(b, s, -1)
-                if self.dynamic:
-                    self.prior[motion_order].mean += self.posterior[motion_order].mean.detach()
-                self.prior[motion_order].log_var = self.prior_log_var[motion_order](input).view(b, s, -1)
-        if generate:
-            return torch.cat([p.sample(resample=True) for p in self.prior], dim=2)
-        return torch.cat([p.sample(resample=True) for p in list(self.posterior)[:-1]], dim=2)
+        self.prior.mean = self.prior_mean(input).view(b, s, -1)
+        self.prior.log_var = self.prior_log_var(input).view(b, s, -1)
+        if gen:
+            return self.prior.sample(n_samples, resample=True)
+        return self.posterior.sample(n_samples, resample=True)
 
     def kl_divergence(self, analytical=False):
         if analytical:
             pass
         else:
-            post_log_prob = torch.cat([post.log_prob(post.sample()) for post in list(self.posterior)[:-1]], dim=2)
-            prior_log_prob =  torch.cat([prior.log_prob(post.sample()) for (post, prior) in zip(list(self.posterior)[:-1], self.prior)], dim=2)
+            post_log_prob = self.posterior.log_prob(self.posterior.sample())
+            prior_log_prob =  self.prior.log_prob(self.posterior.sample())
             return post_log_prob - prior_log_prob
 
     def error(self, averaged=True, normalized=False):
-        sample = torch.cat([posterior.sample() for posterior in list(self.posterior)[:-1]], dim=2)
+        sample = self.posterior.sample()
         n_samples = sample.data.shape[1]
-        prior_mean = torch.cat([prior.mean.detach() for prior in self.prior], dim=2)
-        err = sample - prior_mean
+        prior_mean = self.prior.mean.detach()
+        err = sample - prior_mean[:n_samples]
         if normalized:
-            prior_log_var = torch.cat([prior.log_var.detach() for prior in self.prior], dim=2)
+            prior_log_var = self.prior.log_var.detach()
             err /= torch.exp(prior_log_var + 1e-7)
         if averaged:
             err = err.mean(dim=1)
         return err
 
     def reset(self):
-        mean = [prior.mean.data.clone().mean(dim=1) for prior in self.prior]
-        log_var = [prior.log_var.data.clone().mean(dim=1) for prior in self.prior]
-        for motion_order in range(self.n_orders_motion):
-            self.posterior[motion_order].reset(mean[motion_order], log_var[motion_order])
+        mean = self.prior.mean.data.clone().mean(dim=1)
+        log_var = self.prior.log_var.data.clone().mean(dim=1)
+        self.posterior.reset(mean, log_var)
 
-    def inference_parameters(self):
+    def inference_model_parameters(self):
         inference_params = []
-        for motion_order in range(self.n_orders_motion):
-            inference_params.extend(list(self.posterior_mean[motion_order].parameters()))
-            inference_params.extend(list(self.posterior_mean_gate[motion_order].parameters()))
-            inference_params.extend(list(self.posterior_log_var[motion_order].parameters()))
-            inference_params.extend(list(self.posterior_log_var_gate[motion_order].parameters()))
+        inference_params.extend(list(self.posterior_mean.parameters()))
+        inference_params.extend(list(self.posterior_mean_gate.parameters()))
+        inference_params.extend(list(self.posterior_log_var.parameters()))
+        inference_params.extend(list(self.posterior_log_var_gate.parameters()))
         return inference_params
 
-    def generative_parameters(self):
+    def generative_model_parameters(self):
         generative_params = []
-        if self.learn_prior:
-            generative_params.extend(list(self.prior_mean.parameters()))
-            if self.prior_log_var is not None:
-                generative_params.extend(list(self.prior_log_var.parameters()))
-            else:
-                generative_params.append(self.prior.log_var)
+        generative_params.extend(list(self.prior_mean.parameters()))
+        if self.prior_log_var is not None:
+            generative_params.extend(list(self.prior_log_var.parameters()))
+        else:
+            generative_params.append(self.prior.log_var)
         return generative_params
 
-    def state_parameters(self):
-        state_params = []
-        for motion_order in range(self.n_orders_motion):
-            state_params.extend(list(self.posterior[motion_order].state_parameters()))
-        return state_params
+    def approx_posterior_parameters(self):
+        return [self.posterior.mean.detach(), self.posterior.log_var.detach()]
 
-    def state_gradients(self):
-        assert self.posterior[0].mean.grad is not None, 'State gradients are None.'
-        grads = [torch.cat([posterior.mean.grad.detach() for posterior in list(self.posterior)[:-1]], dim=1)]
-        grads += [torch.cat([posterior.log_var.grad.detach() for posterior in list(self.posterior)[:-1]], dim=1)]
+    def approx_posterior_gradients(self):
+        assert self.posterior.mean.grad is not None, 'Approximate posterior gradients are None.'
+        grads = [self.posterior.mean.grad.detach()]
+        grads += [self.posterior.log_var.grad.detach()]
         for grad in grads:
             grad.volatile = False
         return grads
 
 
 class ConvolutionalLatentVariable(nn.Module):
-
-    def __init__(self, n_variable_channels, filter_size, n_orders_motion,
-                const_prior_var, n_input, norm_flow, learn_prior=True, dynamic=False):
+    """
+    A convolutional Gaussian latent variable. Attributes include a prior, approximate posterior,
+    and previous approximate posterior. Methods for generation, inference, and evalution
+    of errors, KL-divergence.
+    """
+    def __init__(self, n_variable_channels, filter_size, const_prior_var, n_input,
+                 norm_flow):
         super(ConvolutionalLatentVariable, self).__init__()
         self.n_variable_channels = n_variable_channels
         self.filter_size = filter_size
-        self.n_orders_motion = n_orders_motion
-        self.learn_prior = learn_prior
-        self.dynamic = dynamic
 
-        self.posterior_mean = nn.ModuleList([Convolutional(n_input[0], self.n_variable_channels, self.filter_size) for _ in range(self.n_orders_motion)])
-        self.posterior_mean_gate = nn.ModuleList([Convolutional(n_input[0], self.n_variable_channels, self.filter_size, 'sigmoid') for _ in range(self.n_orders_motion)])
-        self.posterior_log_var = nn.ModuleList([Convolutional(n_input[0], self.n_variable_channels, self.filter_size) for _ in range(self.n_orders_motion)])
-        self.posterior_log_var_gate = nn.ModuleList([Convolutional(n_input[0], self.n_variable_channels, self.filter_size, 'sigmoid') for _ in range(self.n_orders_motion)])
+        self.posterior_mean = Convolutional(n_input[0], self.n_variable_channels, self.filter_size)
+        self.posterior_mean_gate = Convolutional(n_input[0], self.n_variable_channels, self.filter_size, 'sigmoid')
+        self.posterior_log_var = Convolutional(n_input[0], self.n_variable_channels, self.filter_size)
+        self.posterior_log_var_gate = Convolutional(n_input[0], self.n_variable_channels, self.filter_size, 'sigmoid')
 
-        if self.learn_prior:
-            self.prior_mean = nn.ModuleList([Convolutional(n_input[1], self.n_variable_channels, self.filter_size) for _ in range(self.n_orders_motion)])
-            self.prior_log_var = None
-            if not const_prior_var:
-                self.prior_log_var = nn.ModuleList([Convolutional(n_input[1], self.n_variable_channels, self.filter_size) for _ in range(self.n_orders_motion)])
+        self.prior_mean = Convolutional(n_input[1], self.n_variable_channels, self.filter_size)
+        # self.prior_mean_gate = Convolutional(n_input[1], self.n_variable_channels, self.filter_size, 'sigmoid', gate=True)
+        self.prior_log_var = None
+        if not const_prior_var:
+            self.prior_log_var = Convolutional(n_input[1], self.n_variable_channels, self.filter_size)
+            # self.prior_log_var_gate = Convolutional(n_input[1], self.n_variable_channels, self.filter_size, 'sigmoid', gate=True)
 
-        self.posterior = nn.ModuleList([DiagonalGaussian(self.n_variable_channels) for _ in range(self.n_orders_motion+1)])
-        self.prior = nn.ModuleList([DiagonalGaussian(self.n_variable_channels) for _ in range(self.n_orders_motion)])
-        if self.learn_prior and const_prior_var:
+        self.previous_posterior = DiagonalGaussian(self.n_variable_channels)
+        self.posterior = DiagonalGaussian(self.n_variable_channels)
+        self.prior = DiagonalGaussian(self.n_variable_channels)
+        if const_prior_var:
             self.prior.log_var_trainable()
 
-    def infer(self, input):
-        for motion_order in range(self.n_orders_motion):
-            mean_update = self.posterior_mean[motion_order](input) * self.posterior_mean_gate[motion_order](input)
-            mean = self.posterior[motion_order].mean.detach() + mean_update + self.posterior[motion_order + 1].mean
-            self.posterior[motion_order].mean = mean
-            log_var_update = self.posterior_log_var[motion_order](input) * self.posterior_log_var_gate[motion_order](input)
-            log_var = self.posterior[motion_order].log_var.detach() + log_var_update
-            self.posterior[motion_order].log_var = log_var
-        return torch.cat([p.sample(resample=True) for p in list(self.posterior)[:-1]], dim=2)
+    def infer(self, input, n_samples=1):
+        # infer the approximate posterior
+        mean_gate = self.posterior_mean_gate(input)
+        mean_update = self.posterior_mean(input) * mean_gate
+        # self.posterior.mean = self.posterior.mean.detach() + mean_update
+        self.posterior.mean = mean_update
+        log_var_gate = self.posterior_log_var_gate(input)
+        log_var_update = self.posterior_log_var(input) * log_var_gate
+        # self.posterior.log_var = (1. - log_var_gate) * self.posterior.log_var.detach() + log_var_update
+        self.posterior.log_var = log_var_update
+        return self.posterior.sample(n_samples, resample=True)
 
-    def predict(self, input, generate):
-        samples = []
+    def generate(self, input, gen, n_samples):
         b, s, c, h, w = input.data.shape
-        input = input.view(b * s, c, h, w)
-        for motion_order in range(self.n_orders_motion):
-            if self.learn_prior:
-                self.prior[motion_order].mean = self.prior_mean[motion_order](input).view(b, s, -1, h, w)
-                if self.dynamic:
-                    self.prior[motion_order].mean += self.posterior[motion_order].mean.detach()
-                self.prior[motion_order].log_var = self.prior_log_var[motion_order](input).view(b, s, -1, h, w)
-        if generate:
-            return torch.cat([p.sample(resample=True) for p in self.prior], dim=2)
-        return torch.cat([p.sample(resample=True) for p in list(self.posterior)[:-1]], dim=2)
+        input = input.view(-1, c, h, w)
+        # mean_gate = self.prior_mean_gate(input).view(b, s, -1, h, w)
+        mean_update = self.prior_mean(input).view(b, s, -1, h, w) # * mean_gate
+        # self.prior.mean = (1. - mean_gate) * self.posterior.mean.detach() + mean_update
+        self.prior.mean = mean_update
+        # log_var_gate = self.prior_log_var_gate(input).view(b, s, -1, h, w)
+        log_var_update = self.prior_log_var(input).view(b, s, -1, h, w) # * log_var_gate
+        # self.prior.log_var = (1. - log_var_gate) * self.posterior.log_var.detach() + log_var_update
+        self.prior.log_var = log_var_update
+        if gen:
+            return self.prior.sample(n_samples, resample=True)
+        return self.posterior.sample(n_samples, resample=True)
+
+    def step(self):
+        # set the previous posterior with the current posterior
+        self.previous_posterior.mean = self.posterior.mean.detach()
+        self.previous_posterior.log_var = self.posterior.log_var.detach()
 
     def kl_divergence(self, analytical=False):
         if analytical:
-            pass
+            n_samples = self.prior.log_var.data.shape[1]
+            post_mean = self.posterior.mean.unsqueeze(1).repeat(1, n_samples, 1, 1, 1)
+            post_log_var = self.posterior.log_var.unsqueeze(1).repeat(1, n_samples, 1, 1, 1)
+            prior_var = torch.clamp(self.prior.log_var.exp(), 1e-6)
+            log_var_ratio = self.prior.log_var - post_log_var
+            var_ratio = post_log_var.exp().div(prior_var)
+            squared_error = (post_mean - self.prior.mean).pow_(2)
+            weighted_squared_error = squared_error.div_(prior_var)
+            return (log_var_ratio.add_(var_ratio).add_(weighted_squared_error).sub_(1.)).mul_(0.5)
         else:
-            post_log_prob = torch.cat([post.log_prob(post.sample()) for post in list(self.posterior)[:-1]], dim=2)
-            prior_log_prob = torch.cat([prior.log_prob(post.sample()) for (post, prior) in zip(list(self.posterior)[:-1], self.prior)], dim=2)
-            return post_log_prob - prior_log_prob
+            post_log_prob = self.posterior.log_prob(self.posterior.sample())
+            prior_log_prob = self.prior.log_prob(self.posterior.sample())
+            return post_log_prob.sub(prior_log_prob)
 
-    def error(self, averaged=True, normalized=False):
-        sample = torch.cat([posterior.sample() for posterior in list(self.posterior)[:-1]], dim=2)
+    def error(self, averaged=True, weighted=False):
+        sample = self.posterior.sample()
         n_samples = sample.data.shape[1]
-        prior_mean = torch.cat([prior.mean.detach() for prior in self.prior], dim=2)
-        err = sample - prior_mean
-        if normalized:
-            prior_log_var = torch.cat([prior.log_var.detach() for prior in self.prior], dim=2)
+        prior_mean = self.prior.mean.detach()
+        err = sample - prior_mean[:n_samples]
+        if weighted:
+            prior_log_var = self.prior.log_var.detach()
             err /= prior_log_var
         if averaged:
             err = err.mean(dim=1)
         return err
 
-    def reset(self):
-        mean = [prior.mean.data.clone().mean(dim=1) for prior in self.prior]
-        log_var = [prior.log_var.data.clone().mean(dim=1) for prior in self.prior]
-        for motion_order in range(self.n_orders_motion):
-            self.posterior[motion_order].reset(mean[motion_order], log_var[motion_order])
+    def reset_approx_posterior(self):
+        mean = self.prior.mean.data.clone().mean(dim=1)
+        log_var = self.prior.log_var.data.clone().mean(dim=1)
+        self.posterior.reset(mean, log_var)
 
-    def inference_parameters(self):
+    def reset_prior(self):
+        self.prior.reset()
+        if self.prior_log_var is None:
+            self.prior.log_var_trainable()
+
+    def reinitialize_variable(self, output_dims):
+        b, _, h, w = output_dims
+        # reinitialize the previous approximate posterior and prior
+        self.previous_posterior.reset()
+        self.previous_posterior.mean = self.previous_posterior.mean.view(1, 1, 1, 1, 1).repeat(b, 1, self.n_variable_channels, h, w)
+        self.previous_posterior.log_var = self.previous_posterior.log_var.view(1, 1, 1, 1, 1).repeat(b, 1, self.n_variable_channels, h, w)
+        self.prior.reset()
+        self.prior.mean = self.prior.mean.view(1, 1, 1, 1, 1).repeat(b, 1, self.n_variable_channels, h, w)
+        self.prior.log_var = self.prior.log_var.view(1, 1, 1, 1, 1).repeat(b, 1, self.n_variable_channels, h, w)
+
+    def inference_model_parameters(self):
         inference_params = []
-        for motion_order in range(self.n_orders_motion):
-            inference_params.extend(list(self.posterior_mean[motion_order].parameters()))
-            inference_params.extend(list(self.posterior_mean_gate[motion_order].parameters()))
-            inference_params.extend(list(self.posterior_log_var[motion_order].parameters()))
-            inference_params.extend(list(self.posterior_log_var_gate[motion_order].parameters()))
+        inference_params.extend(list(self.posterior_mean.parameters()))
+        inference_params.extend(list(self.posterior_mean_gate.parameters()))
+        inference_params.extend(list(self.posterior_log_var.parameters()))
+        inference_params.extend(list(self.posterior_log_var_gate.parameters()))
         return inference_params
 
-    def generative_parameters(self):
+    def generative_model_parameters(self):
         generative_params = []
-        if self.learn_prior:
-            generative_params.extend(list(self.prior_mean.parameters()))
-            if self.prior_log_var is not None:
-                generative_params.extend(list(self.prior_log_var.parameters()))
-            else:
-                generative_params.append(self.prior.log_var)
+        generative_params.extend(list(self.prior_mean.parameters()))
+        if self.prior_log_var is not None:
+            generative_params.extend(list(self.prior_log_var.parameters()))
+        else:
+            generative_params.append(self.prior.log_var)
         return generative_params
 
-    def state_parameters(self):
-        state_params = []
-        for motion_order in range(self.n_orders_motion):
-            state_params.extend(list(self.posterior[motion_order].state_parameters()))
-        return state_params
+    def approx_posterior_parameters(self):
+        return [self.posterior.mean.detach(), self.posterior.log_var.detach()]
 
-    def state_gradients(self):
-        assert self.posterior[0].mean.grad is not None, 'State gradients are None.'
-        grads = [torch.cat([posterior.mean.grad.detach() for posterior in list(self.posterior)[:-1]], dim=1)]
-        grads += [torch.cat([posterior.log_var.grad.detach() for posterior in list(self.posterior)[:-1]], dim=1)]
+    def approx_posterior_gradients(self):
+        assert self.posterior.mean.grad is not None, 'Approximate posterior gradients are None.'
+        grads = [self.posterior.mean.grad.detach()]
+        grads += [self.posterior.log_var.grad.detach()]
         for grad in grads:
             grad.volatile = False
         return grads
