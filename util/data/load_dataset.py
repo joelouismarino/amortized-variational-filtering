@@ -19,7 +19,7 @@ def load_dataset(dataset_name, data_path):
     assert os.path.exists(data_path), 'Data path not found. Please specify a valid path.'
 
     train = val = test = None
-    dataset_name = dataset_name.lower() # standardize the dataset_name
+    dataset_name = dataset_name.lower() # standardize the dataset_name to lower case
 
     ############################################################################
     ## Speech datasets
@@ -117,6 +117,7 @@ def load_dataset(dataset_name, data_path):
                 print('Downloading ' + action + '...')
                 save('http://www.nada.kth.se/cvap/actions/' + action + '.zip',
                     os.path.join(data_path, 'KTH_actions', action + '.zip'))
+                print('\n')
             print('Done.')
 
             print('Unzipping KTH Actions dataset...')
@@ -132,12 +133,24 @@ def load_dataset(dataset_name, data_path):
             print('Processing KTH Actions dataset...')
             from misc_data_util.convert_kth_actions import convert
             convert(os.path.join(data_path, 'KTH_actions'))
+            import shutil
+            for action in actions:
+                shutil.rmtree(os.path.join(data_path, 'KTH_actions', action))
             print('Done.')
 
         from datasets.kth_actions import KTHActions
-        train = KTHActions(os.path.join(data_path, 'KTH_actions', 'train'))
-        val   = KTHActions(os.path.join(data_path, 'KTH_actions', 'val'))
-        test  = KTHActions(os.path.join(data_path, 'KTH_actions', 'test'))
+        train_trans = trans.Compose([trans.RandomHorizontalFlip(),
+                                     trans.Resize(64),
+                                     trans.RandomSequenceCrop(20),
+                                     trans.ToTensor(),
+                                     trans.ConcatSequence()])
+        val_test_trans = trans.Compose([trans.Resize(64),
+                                    trans.RandomSequenceCrop(20),
+                                    trans.ToTensor(),
+                                    trans.ConcatSequence()])
+        train = KTHActions(os.path.join(data_path, 'KTH_actions', 'train'), train_trans)
+        val   = KTHActions(os.path.join(data_path, 'KTH_actions', 'val'), val_test_trans)
+        test  = KTHActions(os.path.join(data_path, 'KTH_actions', 'test'), val_test_trans)
 
     if dataset_name == 'bair_robot_pushing':
         if not os.path.exists(os.path.join(data_path, 'BAIR_robot_pushing')):
