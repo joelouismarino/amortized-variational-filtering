@@ -1,22 +1,30 @@
-# training set-up
-train_config = {
+run_config = {
     'batch_size': 1,
     'inference_iterations': 1,
-    'encoder_learning_rate': 0.00001,
-    'decoder_learning_rate': 0.00001,
     'cuda_device': 1,
-    'resume_experiment_dir': None, # currently has no effect
-    'experiment_save_dir': '' # currently has no effect
+    'resume_path': None,
+    'experiment_path': '' # currently has no effect
+}
+
+train_config = {
+    'optimizer': 'adam',
+    'encoder_learning_rate': 0.00001,
+    'decoder_learning_rate': 0.00001
 }
 
 data_config = {
-    'url_file_path': 'data/youtube_8m_urls/Science.txt',
-    'data_save_dir': '/media/joe/SSD/datasets/temp/',
-    'transform': True,
-    'resize': [96, 96]
+    'data_path': '/media/joe/SSD/datasets/',
+    'dataset_name': 'BAIR_robot_pushing',
+    'seqeunce_length': 20,
+
+    'img_size': [64, 64],
+    'img_hz_flip': True,
+    'img_rotation': 0,
+    'img_crop': [64, 64],
+
+    'youtube_url_file': 'data/youtube_8m_urls/Science.txt',
 }
 
-# model architecture
 model_config = {
     'encoding_form': ['posterior'],
     'concat_levels': False,

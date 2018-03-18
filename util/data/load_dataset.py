@@ -6,20 +6,22 @@ from zipfile import ZipFile
 from misc_data_util.url_save import save
 
 
-def load_dataset(dataset_name, data_path):
+def load_dataset(data_config, run_config):
     """
     Downloads and loads a variety of standard benchmark sequence datasets.
     Arguments:
-        dataset_name: the name of the dataset to loading
-        data_path: path to directory where data should be saved
+        data_config (dict): dictionary containing data configuration arguments
+        run_config (dict): dictionary containing run configuration arguments
     Returns:
         tuple of (train, val, test), each of which is a PyTorch dataset.
     """
+    data_path = data_config['data_path'] # path to data directory
+    if data_path is not None:
+        assert os.path.exists(data_path), 'Data path not found.'
 
-    assert os.path.exists(data_path), 'Data path not found. Please specify a valid path.'
-
+    dataset_name = data_config['dataset_name'] # the name of the dataset to load
+    dataset_name = dataset_name.lower() # cast dataset_name to lower case
     train = val = test = None
-    dataset_name = dataset_name.lower() # standardize the dataset_name to lower case
 
     ############################################################################
     ## Speech datasets
@@ -32,7 +34,7 @@ def load_dataset(dataset_name, data_path):
                              then create a directory called blizzard in your data directory.')
         # TODO: load BLIZZARD
 
-    if dataset_name == 'timit':
+    elif dataset_name == 'timit':
         if not os.path.exists(os.path.join(data_path, 'timit')):
             raise ValueError('TIMIT dataset does not exist. Please manually \
                              download the dataset by obtaining a license from \
@@ -43,7 +45,7 @@ def load_dataset(dataset_name, data_path):
     ############################################################################
     ## Handwriting datasets
     ############################################################################
-    if dataset_name == 'iam_ondb':
+    elif dataset_name == 'iam_ondb':
         if not os.path.exists(os.path.join(data_path, 'iam_ondb')):
             raise ValueError('IAM_OnDB dataset does not exist. Please manually \
                              download the dataset by obtaining a license from \
@@ -54,7 +56,7 @@ def load_dataset(dataset_name, data_path):
     ############################################################################
     ## MIDI datasets
     ############################################################################
-    if dataset_name == 'piano_midi':
+    elif dataset_name == 'piano_midi':
         if not os.path.exists(os.path.join(data_path, 'piano_midi')):
             os.makedirs(os.path.join(data_path, 'piano_midi'))
         if not os.path.exists(os.path.join(data_path, 'piano_midi', 'Piano-midi.de.pickle')):
@@ -65,7 +67,7 @@ def load_dataset(dataset_name, data_path):
         piano_roll = cPickle.load(os.path.join(data_path, 'piano_midi', 'Piano-midi.de.pickle'))
         # TODO: load piano_midi
 
-    if dataset_name == 'nottingham':
+    elif dataset_name == 'nottingham':
         if not os.path.exists(os.path.join(data_path, 'nottingham')):
             os.makedirs(os.path.join(data_path, 'nottingham'))
         if not os.path.exists(os.path.join(data_path, 'nottingham', 'Nottingham.pickle')):
@@ -76,7 +78,7 @@ def load_dataset(dataset_name, data_path):
         piano_roll = cPickle.load(os.path.join(data_path, 'nottingham', 'Nottingham.pickle'))
         # TODO: load nottingham
 
-    if dataset_name == 'muse':
+    elif dataset_name == 'muse':
         if not os.path.exists(os.path.join(data_path, 'muse')):
             os.makedirs(os.path.join(data_path, 'muse'))
         if not os.path.exists(os.path.join(data_path, 'muse', 'MuseData.pickle')):
@@ -87,7 +89,7 @@ def load_dataset(dataset_name, data_path):
         piano_roll = cPickle.load(os.path.join(data_path, 'muse', 'MuseData.pickle'))
         # TODO: load muse
 
-    if dataset_name == 'jsb_chorales':
+    elif dataset_name == 'jsb_chorales':
         if not os.path.exists(os.path.join(data_path, 'jsb_chorales')):
             os.makedirs(os.path.join(data_path, 'jsb_chorales'))
         if not os.path.exists(os.path.join(data_path, 'jsb_chorales', 'JSBChorales.pickle')):
@@ -101,13 +103,13 @@ def load_dataset(dataset_name, data_path):
     ############################################################################
     ## Video datasets
     ############################################################################
-    if dataset_name == 'stochastic_moving_mnist':
+    elif dataset_name == 'stochastic_moving_mnist':
         if not os.path.exists(os.path.join(data_path, 'stochastic_moving_MNIST')):
             os.makedirs(os.path.join(data_path, 'stochastic_moving_MNIST'))
             # download stochastic_moving_MNIST dataset
         # TODO: load stochastic_moving_MNIST
 
-    if dataset_name == 'kth_actions':
+    elif dataset_name == 'kth_actions':
         if not os.path.exists(os.path.join(data_path, 'KTH_actions')):
             os.makedirs(os.path.join(data_path, 'KTH_actions'))
         if not os.path.exists(os.path.join(data_path, 'KTH_actions', 'train')):
@@ -140,19 +142,19 @@ def load_dataset(dataset_name, data_path):
 
         from datasets.kth_actions import KTHActions
         train_trans = trans.Compose([trans.RandomHorizontalFlip(),
-                                     trans.Resize(64),
-                                     trans.RandomSequenceCrop(20),
+                                     trans.Resize(data_config['img_size']),
+                                     trans.RandomSequenceCrop(data_config['seqeunce_length']),
                                      trans.ToTensor(),
                                      trans.ConcatSequence()])
-        val_test_trans = trans.Compose([trans.Resize(64),
-                                    trans.RandomSequenceCrop(20),
+        val_test_trans = trans.Compose([trans.Resize(data_config['img_size']),
+                                    trans.RandomSequenceCrop(data_config['seqeunce_length']),
                                     trans.ToTensor(),
                                     trans.ConcatSequence()])
         train = KTHActions(os.path.join(data_path, 'KTH_actions', 'train'), train_trans)
         val   = KTHActions(os.path.join(data_path, 'KTH_actions', 'val'), val_test_trans)
         test  = KTHActions(os.path.join(data_path, 'KTH_actions', 'test'), val_test_trans)
 
-    if dataset_name == 'bair_robot_pushing':
+    elif dataset_name == 'bair_robot_pushing':
         if not os.path.exists(os.path.join(data_path, 'BAIR_robot_pushing')):
             os.makedirs(os.path.join(data_path, 'BAIR_robot_pushing'))
 
@@ -178,15 +180,21 @@ def load_dataset(dataset_name, data_path):
 
         from datasets.bair_robot_pushing import BAIRRobotPushing
         train_trans = trans.Compose([trans.RandomHorizontalFlip(),
-                                     trans.Resize(64),
-                                     trans.RandomSequenceCrop(20),
+                                     trans.Resize(data_config['img_size']),
+                                     trans.RandomSequenceCrop(data_config['seqeunce_length']),
                                      trans.ToTensor(),
                                      trans.ConcatSequence()])
-        test_trans = trans.Compose([trans.Resize(64),
-                                    trans.RandomSequenceCrop(20),
+        test_trans = trans.Compose([trans.Resize(data_config['img_size']),
+                                    trans.RandomSequenceCrop(data_config['seqeunce_length']),
                                     trans.ToTensor(),
                                     trans.ConcatSequence()])
         train = BAIRRobotPushing(os.path.join(data_path, 'BAIR_robot_pushing', 'train'), train_trans)
         test  = BAIRRobotPushing(os.path.join(data_path, 'BAIR_robot_pushing', 'test'), test_trans)
+
+    elif dataset_name == 'youtube':
+        pass
+    
+    else:
+        raise IOError('Dataset name not found.')
 
     return train, val, test
