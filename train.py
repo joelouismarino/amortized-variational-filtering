@@ -21,7 +21,6 @@ else:
     optimizers, schedulers = load_opt_sched(train_config, model)
 
 # train the model
-epoch = 0
 while True:
     train(train_data, model, optimizers, schedulers)
     if val_data:

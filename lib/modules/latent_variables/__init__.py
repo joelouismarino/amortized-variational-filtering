@@ -1,0 +1,2 @@
+from convolutional import ConvLatentVariable
+from fully_connected import FullyConnectedLatentVariable

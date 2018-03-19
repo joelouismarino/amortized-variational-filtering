@@ -1,13 +1,13 @@
 import torch.nn as nn
 
 
-class DLVM(nn.Module):
+class LatentVariableModel(nn.Module):
     """
-    Abstract class for a dynamical latent variable model (DLVM). All dynamical
-    models should inherit from this class.
+    Abstract class for a (dynamical) latent variable model (DLVM). All models
+    inherit from this class.
     """
     def __init__(model_config):
-        super(DLVM, self).__init__()
+        super(LatentVariableModel, self).__init__()
         self.levels = nn.ModuleList([])
         self._construct(model_config)
 
@@ -17,20 +17,6 @@ class DLVM(nn.Module):
         the model configuration file.
         """
         raise NotImplementedError
-
-    def _reset_approx_posterior(self):
-        """
-        Reset the approximate posterior estimates.
-        """
-        for latent_level in self.levels:
-            latent_level.latent.reset_approx_posterior()
-
-    def _reset_prior(self):
-        """
-        Reset the prior estimates.
-        """
-        for latent_level in self.levels:
-            latent_level.latent.reset_prior()
 
     def infer(self, input):
         """
@@ -48,22 +34,24 @@ class DLVM(nn.Module):
 
     def step(self):
         """
-        Abstract method for stepping the generative model forward one step in
-        the sequence.
+        Method for stepping the generative model forward one step in the sequence.
         """
-        raise NotImplementedError
+        for latent_level in self.levels:
+            latent_level.step()
 
     def re_init(self):
         """
-        Abstract method for reinitializing the state (approximate posterior) of
-        the dynamical latent variable model.
+        Method for reinitializing the state (approximate posterior and priors)
+        of the dynamical latent variable model.
         """
-        raise NotImplementedError
+        for latent_level in self.levels:
+            latent_level.re_init()
 
     def kl_divergences(self, averaged=False):
         """
         Estimate the KL divergence (at each latent level).
         """
+        # TODO: keep this general across conv, fc
         kl = []
         for latent_level in self.levels:
             kl.append(latent_level.latent.kl_divergence(analytical=False).sum(4).sum(3).sum(2).mean(1))
@@ -76,6 +64,7 @@ class DLVM(nn.Module):
         """
         Estimate the conditional log-likelihood.
         """
+        # TODO: keep this general across conv, fc
         if len(input.data.shape) == 4:
             input = input.unsqueeze(1) # add sample dimension
         log_prob = self.output_dist.log_prob(sample=input).sub_(np.log(256.))
@@ -107,3 +96,9 @@ class DLVM(nn.Module):
             return lower_bound.mean(dim=0), cond_log_like.mean(dim=0), [level_kl.mean(dim=0) for level_kl in kl]
         else:
             return lower_bound, cond_log_like, kl
+
+    def inference_parameters(self):
+        pass
+
+    def generative_parameters(self):
+        pass

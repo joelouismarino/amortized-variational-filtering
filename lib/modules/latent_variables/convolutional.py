@@ -1,19 +1,30 @@
 import torch
 import torch.nn as nn
-from torch.distributions import Normal
 from latent_variable import LatentVariable
-from ..convolutional import ConvLayer, ConvNetwork
+from ..layers import ConvLayer
 
 
 class ConvLatentVariable(LatentVariable):
     """
-    A convolutional latent variable. Attributes include a prior, approximate posterior,
-    and previous approximate posterior. Methods for generation, inference, and evalution
-    of errors, KL-divergence.
+    A convolutional latent variable.
     """
-    def __init__(self, n_variable_channels, filter_size, const_prior_var, n_input,
-                 norm_flow):
-        super(ConvolutionalLatentVariable, self).__init__()
+    def __init__(self, variable_config):
+        super(ConvLatentVariable, self).__init__()
+        self.approx_posterior = self.prior = None
+        self._construct(variable_config)
+
+    def _construct(self, variable_config):
+
+        approx_posterior_form = variable_config['approx_posterior']
+
+
+    def _get_distribution(self, distribution):
+
+        if distribution == 'normal':
+            from torch.distributions import Normal
+            return Normal
+
+
         self.n_variable_channels = n_variable_channels
         self.filter_size = filter_size
 
@@ -66,22 +77,6 @@ class ConvLatentVariable(LatentVariable):
         # set the previous posterior with the current posterior
         self.previous_posterior.mean = self.posterior.mean.detach()
         self.previous_posterior.log_var = self.posterior.log_var.detach()
-
-    def kl_divergence(self, analytical=False):
-        if analytical:
-            n_samples = self.prior.log_var.data.shape[1]
-            post_mean = self.posterior.mean.unsqueeze(1).repeat(1, n_samples, 1, 1, 1)
-            post_log_var = self.posterior.log_var.unsqueeze(1).repeat(1, n_samples, 1, 1, 1)
-            prior_var = torch.clamp(self.prior.log_var.exp(), 1e-6)
-            log_var_ratio = self.prior.log_var - post_log_var
-            var_ratio = post_log_var.exp().div(prior_var)
-            squared_error = (post_mean - self.prior.mean).pow_(2)
-            weighted_squared_error = squared_error.div_(prior_var)
-            return (log_var_ratio.add_(var_ratio).add_(weighted_squared_error).sub_(1.)).mul_(0.5)
-        else:
-            post_log_prob = self.posterior.log_prob(self.posterior.sample())
-            prior_log_prob = self.prior.log_prob(self.posterior.sample())
-            return post_log_prob.sub(prior_log_prob)
 
     def error(self, averaged=True, weighted=False):
         sample = self.posterior.sample()

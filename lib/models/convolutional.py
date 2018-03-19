@@ -2,11 +2,11 @@ import numpy as np
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
-from lib.distributions import DiagonalGaussian, Bernoulli
-from lib.modules.convolutional import Convolutional, ConvolutionalNetwork
-from lib.modules.latent_levels import ConvolutionalLatentLevel
+from torch.distributions import Normal, Bernoulli
+from lib.modules.layers import ConvLayer
+from lib.modules.networks import ConvNetwork
+from lib.modules.latent_levels import ConvLatentLevel
 
-import time
 
 class ConvDLVM(nn.Module):
     """

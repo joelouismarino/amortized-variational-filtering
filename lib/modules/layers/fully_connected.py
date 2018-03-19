@@ -3,7 +3,7 @@ import torch.nn as nn
 from torch.nn import init
 
 
-class FullyConnected(nn.Module):
+class FullyConnectedLayer(nn.Module):
     """
     Fully-connected (dense) layer with optional batch normalization,
     non-linearity, weight normalization, and dropout.

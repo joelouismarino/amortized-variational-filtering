@@ -7,37 +7,50 @@ class LatentLevel(nn.Module):
     """
     def __init__(self):
         super(LatentLevel, self).__init__()
+        self.latent = None
 
     def infer(self, input):
         """
         Abstract method to perform inference.
+
+        Args:
+            input (Tensor): input to the inference procedure
         """
         raise NotImplementedError
 
-    def generate(self, input):
+    def generate(self, input, gen, n_samples):
         """
         Abtract method to generate, i.e. run the model forward.
+
+        Args:
+            input (Tensor): input to the generative procedure
+            gen (boolean): whether to sample from approximate poserior (False) or
+                            the prior (True)
+            n_samples (int): number of samples to draw
+        """
+        raise NotImplementedError
+
+    def step(self):
+        """
+        Method to step the latent level forward in the sequence.
+        """
+        self.latent.step()
+
+    def re_init(self):
+        """
+        Abtract method to reinitialize the latent level (latent variable and any
+        state variables in the generative / inference procedures).
         """
         raise NotImplementedError
 
     def inference_parameters(self):
         """
-        Returns the inference parameters.
+        Abstract method to obtain inference parameters.
         """
-        inference_params = []
-        inference_params.extend(list(self.encoder.parameters()))
-        if self.det_enc:
-            inference_params.extend(list(self.det_enc.parameters()))
-        inference_params.extend(list(self.latent.inference_model_parameters()))
-        return inference_params
+        raise NotImplementedError
 
     def generative_parameters(self):
         """
-        Returns the generative parameters.
+        Abstract method to obtain generative parameters.
         """
-        generative_params = []
-        generative_params.extend(list(self.decoder.parameters()))
-        if self.det_dec:
-            generative_params.extend(list(self.det_dec.parameters()))
-        generative_params.extend(list(self.latent.generative_model_parameters()))
-        return generative_params
+        raise NotImplementedError

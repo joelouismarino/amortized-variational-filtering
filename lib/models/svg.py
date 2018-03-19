@@ -1,7 +1,7 @@
-from dlvm import DLVM
+from latent_variable_model import LatentVariableModel
 
 
-class SVG(DLVM):
+class SVG(LatentVariableModel):
     """
     Stochastic video generation (SVG) model from "Stochastic Video Generation
     with a Learned Prior," Denton & Fergus, 2018.

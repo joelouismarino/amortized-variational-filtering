@@ -1,13 +1,14 @@
 import torch
 import torch.nn as nn
 from latent_level import LatentLevel
-from convolutional import Convolutional, ConvolutionalNetwork
-from variables import ConvolutionalLatentVariable
+from layers import ConvLayer
+from networks import ConvNetwork
+from latent_variables import ConvLatentVariable
 
 
-class ConvolutionalLatentLevel(LatentLevel):
+class ConvLatentLevel(LatentLevel):
     """
-    A convolutional latent level with encoder and decoder networks,
+    A convolutional latent level with inference and generative procedures,
     optional deterministic connections.
     """
     def __init__(self, n_variable_channels, filter_size, n_det, encoder_arch,
