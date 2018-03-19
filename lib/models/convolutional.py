@@ -10,7 +10,7 @@ import time
 
 class ConvDLVM(nn.Module):
     """
-    Convolutional deep latent variable model.
+    Convolutional dynamical latent variable model.
     """
     def __init__(self, model_config):
         super(ConvDLVM, self).__init__()
@@ -27,7 +27,7 @@ class ConvDLVM(nn.Module):
 
     def _construct(self, model_config):
         """
-        Constructs the convolutional deep latent variable model using the model
+        Constructs the convolutional dynamical latent variable model using the model
         configuration file.
         """
         # transformation of variables on the input

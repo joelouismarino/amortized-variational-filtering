@@ -195,6 +195,6 @@ def load_dataset(data_config, run_config):
         pass
     
     else:
-        raise IOError('Dataset name not found.')
+        raise Exception('Dataset name not found.')
 
     return train, val, test

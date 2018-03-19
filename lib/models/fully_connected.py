@@ -19,7 +19,7 @@ def get_model(train_config, arch, data_loader):
         return DenseLatentVariableModel(train_config, arch, data_loader)
 
 
-class DenseLVM(object):
+class FullyConnectedDLVM(object):
 
     def __init__(self, train_config, arch, data_loader):
 

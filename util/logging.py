@@ -5,7 +5,7 @@ from misc import set_gpu_recursive, get_last_epoch
 global log_path
 
 
-def init(run_config):
+def init_log(run_config):
     """
     Initialize logs, either from existing experiment or create new experiment.
     """

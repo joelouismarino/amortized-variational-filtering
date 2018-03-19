@@ -1,30 +1,3 @@
-run_config = {
-    'batch_size': 1,
-    'inference_iterations': 1,
-    'cuda_device': 1,
-    'resume_path': None,
-    'experiment_path': '' # currently has no effect
-}
-
-train_config = {
-    'optimizer': 'adam',
-    'encoder_learning_rate': 0.00001,
-    'decoder_learning_rate': 0.00001
-}
-
-data_config = {
-    'data_path': '/media/joe/SSD/datasets/',
-    'dataset_name': 'BAIR_robot_pushing',
-    'seqeunce_length': 20,
-
-    'img_size': [64, 64],
-    'img_hz_flip': True,
-    'img_rotation': 0,
-    'img_crop': [64, 64],
-
-    'youtube_url_file': 'data/youtube_8m_urls/Science.txt',
-}
-
 model_config = {
     'encoding_form': ['posterior'],
     'concat_levels': False,

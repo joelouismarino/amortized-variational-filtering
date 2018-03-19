@@ -5,7 +5,7 @@ import numpy as np
 global vis
 
 
-def init(log_dir):
+def init_plot(log_dir):
     """
     Initialize the plotting environment.
     """
