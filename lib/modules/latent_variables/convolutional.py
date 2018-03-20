@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from lib.distributions import Normal
 from latent_variable import LatentVariable
 from ..layers import ConvLayer
 
@@ -7,6 +8,9 @@ from ..layers import ConvLayer
 class ConvLatentVariable(LatentVariable):
     """
     A convolutional latent variable.
+
+    Args:
+        variable_config (dict): dictionary containing variable config parameters
     """
     def __init__(self, variable_config):
         super(ConvLatentVariable, self).__init__()
@@ -14,15 +18,52 @@ class ConvLatentVariable(LatentVariable):
         self._construct(variable_config)
 
     def _construct(self, variable_config):
+        """
+        Constructs the latent variable according to the variable_config dict.
+        Currently hard-coded to Gaussian distributions for both approximate
+        posterior and prior.
 
-        approx_posterior_form = variable_config['approx_posterior']
+        Args:
+            variable_config (dict): dictionary containing variable config params
+        """
+        self.n_channels = variable_config['n_channels']
+        self.filter_size = variable_config['filter_size']
+
+        mean = Variable(torch.zeros(1, self.n_channels, 1, 1))
+        std = Variable(torch.ones(1, self.n_channels, 1, 1))
+        self.approx_posterior = Normal(mean, std)
+        self.prior = Normal(mean, std)
 
 
-    def _get_distribution(self, distribution):
 
-        if distribution == 'normal':
-            from torch.distributions import Normal
-            return Normal
+    def infer(self, input):
+        """
+        Method to perform inference.
+
+        Args:
+            input (Tensor): input to the inference procedure
+        """
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
         self.n_variable_channels = n_variable_channels

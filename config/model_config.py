@@ -1,10 +1,12 @@
 model_config = {
+    'architecture': 'svg',
+
+
     'encoding_form': ['posterior'],
     'concat_levels': False,
     'transform_input': False, # currently has no effect
     'constant_prior_variances': False,
     'output_distribution': 'gaussian', # currently only supported distribution
-    'normalizing_flows': False, # currently has no effect
 
     'n_latent': [64],
 
@@ -34,3 +36,11 @@ model_config = {
     'dropout_enc': 0.0,
     'dropout_dec': 0.0
 }
+
+## SVG
+if model_config['architecture'].lower() == 'svg':
+    model_config['model_type'] = 'bair_robot_pushing'
+
+## VRNN
+if model_config['architecture'].lower() == 'vrnn':
+    model_config['model_type'] = 'blizzard'

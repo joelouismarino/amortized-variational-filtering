@@ -4,8 +4,8 @@ from torch.optim.lr_scheduler import ExponentialLR
 
 def load_opt_sched(train_config, model):
 
-    encoder_params = model.inference_model_parameters()
-    decoder_params = model.generative_model_parameters()
+    inf_params = model.inference_parameters()
+    gen_params = model.generative_parameters()
 
     opt_name = train_config['optimizer'].lower().replace('_', '').strip()
     if opt_name == 'sgd':
@@ -15,10 +15,10 @@ def load_opt_sched(train_config, model):
     elif opt_name == 'adam':
         optimizer = opt.Adam
 
-    enc_opt = optimizer(encoder_params, lr=train_config['encoder_learning_rate'])
-    dec_opt = optimizer(decoder_params, lr=train_config['decoder_learning_rate'])
+    inf_opt = optimizer(inf_params, lr=train_config['encoder_learning_rate'])
+    gen_opt = optimizer(gen_params, lr=train_config['decoder_learning_rate'])
 
-    enc_sched = ExponentialLR(enc_opt, 0.999)
-    dec_sched = ExponentialLR(dec_opt, 0.999)
+    inf_sched = ExponentialLR(enc_opt, 0.999)
+    gen_sched = ExponentialLR(dec_opt, 0.999)
 
-    return (enc_opt, dec_opt), (enc_sched, dec_sched)
+    return (inf_opt, gen_opt), (inf_sched, gen_sched)
