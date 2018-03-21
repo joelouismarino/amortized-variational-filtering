@@ -6,8 +6,9 @@ class LatentVariableModel(nn.Module):
     Abstract class for a (dynamical) latent variable model (DLVM). All models
     inherit from this class.
     """
-    def __init__(model_config):
+    def __init__(self, model_config):
         super(LatentVariableModel, self).__init__()
+        self.model_config = model_config
 
     def _construct(self, model_config):
         """

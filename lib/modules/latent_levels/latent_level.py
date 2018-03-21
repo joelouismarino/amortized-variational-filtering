@@ -5,7 +5,7 @@ class LatentLevel(nn.Module):
     """
     Abstract class for a latent level.
     """
-    def __init__(self):
+    def __init__(self, level_config):
         super(LatentLevel, self).__init__()
         self.latent = None
 
@@ -32,9 +32,9 @@ class LatentLevel(nn.Module):
 
     def step(self):
         """
-        Method to step the latent level forward in the sequence.
+        Abstract method to step the latent level forward in the sequence.
         """
-        self.latent.step()
+        raise NotImplementedError
 
     def re_init(self):
         """

@@ -7,8 +7,8 @@ from util.optimizers import load_opt_sched
 from util.train_val import train, validate
 
 # initialize logging and plotting
-log_dir = init_log(run_config)
-init_plot(log_dir)
+# log_dir = init_log(run_config)
+# init_plot(log_dir)
 
 # load the data
 train_data, val_data, test_data = load_data(data_config, run_config)

@@ -3,10 +3,10 @@ data_config = {
     'dataset_name': 'BAIR_robot_pushing',
     'seqeunce_length': 20,
 
-    'img_size': [64, 64],
+    'img_size': [128, 128],
     'img_hz_flip': True,
     'img_rotation': 0,
-    'img_crop': [64, 64],
+    'img_crop': [128, 128],
 }
 
 if data_config['dataset_name'] == 'youtube':

@@ -1,5 +1,4 @@
 import torch.nn as nn
-import torch.distributions.kl as kld
 
 
 class LatentVariable(nn.Module):
@@ -8,7 +7,8 @@ class LatentVariable(nn.Module):
     """
     def __init__(self, variable_config):
         super(LatentVariable, self).__init__()
-        self.approx_posterior = self.prior = None
+        self.approx_post = self.prior = None
+        self.variable_config = variable_config
 
     def infer(self, input):
         """
@@ -53,11 +53,13 @@ class LatentVariable(nn.Module):
             analytical (boolean): whether to use the analytical form of the KL
                                   divergence for exact evaluation
         """
-        if analytical:
-            return kld.kl_divergence(self.approx_posterior, self.prior)
-        else:
-            z = self.approx_posterior.rsample()
-            return self.approx_posterior.log_prob(z) - self.prior.log_prob(z)
+        # TODO: implement general KL divergence computation
+        raise NotImplementedError
+        # if analytical:
+        #     return kld.kl_divergence(self.approx_posterior, self.prior)
+        # else:
+        #     z = self.approx_posterior.rsample()
+        #     return self.approx_posterior.log_prob(z) - self.prior.log_prob(z)
 
     def inference_parameters(self):
         """

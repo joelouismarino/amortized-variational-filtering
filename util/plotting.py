@@ -27,3 +27,7 @@ def save_env():
     """
     global vis
     vis.save([vis.env])
+
+
+def plot_wrapper():
+    raise NotImplementedError

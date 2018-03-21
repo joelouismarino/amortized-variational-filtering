@@ -3,5 +3,5 @@ run_config = {
     'inference_iterations': 1,
     'cuda_device': 1,
     'resume_path': None,
-    'experiment_path': '' # currently has no effect
+    'log_root_path': '/media/joe/SSD/logs/avf_logs'
 }

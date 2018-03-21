@@ -3,8 +3,8 @@ from logging import log_wrapper
 from plotting import plot_wrapper
 
 
-@plot_wrapper
-@log_wrapper
+# @plot_wrapper
+# @log_wrapper
 def train(data, model, optimizers, schedulers):
     """
     Function to train the model on data and update using optimizers and schedulers.
@@ -18,16 +18,19 @@ def train(data, model, optimizers, schedulers):
     inf_opt, gen_opt = optimizers
     inf_sched, gen_sched = schedulers
 
+    model.train()
+
     for batch_ind, batch in enumerate(data):
         model.re_init()
         for step_ind, step_batch in enumerate(batch):
+            import ipdb; ipdb.set_trace()
             model.infer(Variable(step_batch))
             model.generate()
             model.step()
 
 
-@plot_wrapper
-@log_wrapper
+# @plot_wrapper
+# @log_wrapper
 def validate(data, model):
     """
     Function to validate the model on data and update using optimizers and schedulers.
@@ -36,6 +39,9 @@ def validate(data, model):
         data (DataLoader): a data loader that provides batches of sequence data
         model (LatentVariableModel): model to train
     """
+
+    model.eval()
+
     for batch_ind, batch in enumerate(data):
         model.re_init()
         for step_ind, step_batch in enumerate(batch):

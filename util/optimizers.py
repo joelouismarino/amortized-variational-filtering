@@ -18,7 +18,7 @@ def load_opt_sched(train_config, model):
     inf_opt = optimizer(inf_params, lr=train_config['encoder_learning_rate'])
     gen_opt = optimizer(gen_params, lr=train_config['decoder_learning_rate'])
 
-    inf_sched = ExponentialLR(enc_opt, 0.999)
-    gen_sched = ExponentialLR(dec_opt, 0.999)
+    inf_sched = ExponentialLR(inf_opt, 0.999)
+    gen_sched = ExponentialLR(gen_opt, 0.999)
 
     return (inf_opt, gen_opt), (inf_sched, gen_sched)

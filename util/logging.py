@@ -9,12 +9,14 @@ def init_log(run_config):
     """
     Initialize logs, either from existing experiment or create new experiment.
     """
+    print('Initializing logs...')
     global log_path
     if run_config['resume_path']:
         # resume an old experiment
-        log_root = run_config['experiment_path']
+        log_root = run_config['log_root_path']
         if os.path.exists(os.path.join(log_root, run_config['resume_path'])):
             log_path = os.path.join(log_root, run_config['resume_path'])
+            print(' Resuming experiment ' + run_config['resume_path'])
             return run_config['resume_path']
         else:
             raise Exception('Experiment folder ' + run_config['resume_path'] + ' not found.')
@@ -26,6 +28,7 @@ def init_log(run_config):
         os.system("rsync -au --include '*/' --include '*.py' --exclude '*' . " + log_path + "source")
         os.makedirs(os.path.join(log_path, 'metrics'))
         os.makedirs(os.path.join(log_path, 'checkpoints'))
+        print(' Starting experiment ' + log_dir)
         return log_dir
 
 
@@ -55,3 +58,7 @@ def save_checkpoint(model, optimizers, schedulers):
     torch.save(model, os.path.join(ckpt_path, 'model.ckpt'))
     torch.save(tuple(optimizers), os.path.join(ckpt_path, 'opt.ckpt'))
     torch.save(tuple(schedulers), os.path.join(ckpt_path, 'sched.ckpt'))
+
+
+def log_wrapper():
+    raise NotImplementedError

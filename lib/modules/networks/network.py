@@ -6,7 +6,7 @@ class Network(nn.Module):
     """
     Abstract class for a neural network.
     """
-    def __init__(self):
+    def __init__(self, network_config):
         super(Network, self).__init__()
 
     def forward(self, input):

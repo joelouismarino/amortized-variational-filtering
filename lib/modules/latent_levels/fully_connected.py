@@ -1,8 +1,8 @@
 import torch
-import torch.nn as nn
 from latent_level import LatentLevel
-from fully_connected import FullyConnected, FullyConnectedNetwork
-from variables import FullyConnectedLatentVariable
+from lib.modules.layers import FullyConnectedLayer
+from lib.modules.networks import FullyConnectedNetwork
+from lib.modules.latent_variables import FullyConnectedLatentVariable
 
 
 class FullyConnectedLatentLevel(LatentLevel):

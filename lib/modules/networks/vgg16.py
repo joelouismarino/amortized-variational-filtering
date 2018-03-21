@@ -48,7 +48,7 @@ class encoder(nn.Module):
                 )
         # 4 x 4
         self.c6 = nn.Sequential(
-                nn.Conv2d(512, dim, 4, 1, 0),
+                nn.Conv2d(512, dim, kernel_size=4, stride=1, padding=0),
                 nn.BatchNorm2d(dim),
                 nn.Tanh()
                 )

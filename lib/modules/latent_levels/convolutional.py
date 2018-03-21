@@ -1,9 +1,8 @@
 import torch
-import torch.nn as nn
 from latent_level import LatentLevel
-from layers import ConvLayer
-from networks import ConvNetwork
-from latent_variables import ConvLatentVariable
+from lib.modules.layers import ConvLayer
+from lib.modules.networks import ConvNetwork
+from lib.modules.latent_variables import ConvLatentVariable
 
 
 class ConvLatentLevel(LatentLevel):
