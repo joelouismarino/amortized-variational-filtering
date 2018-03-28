@@ -53,10 +53,10 @@ class Normal(Distribution):
 
         Return: an estimate of log probabilities
         """
-        if sample is None:
-            sample = self.sample()
+        if value is None:
+            value = self.sample()
         assert self.mean is not None and self.log_var is not None, 'Mean or log variance are None.'
-        n_samples = sample.data.shape[1]
+        n_samples = value.data.shape[1]
         mean = self.mean
         log_var = self.log_var
         if len(mean.size()) == 2:
@@ -65,7 +65,7 @@ class Normal(Distribution):
         elif len(mean.size()) == 4:
             mean = mean.unsqueeze(1).repeat(1, n_samples, 1, 1, 1)
             log_var = log_var.unsqueeze(1).repeat(1, n_samples, 1, 1, 1)
-        return (log_var.add(math.log(2 * math.pi)).add_((sample.sub(mean).pow_(2)).div_(log_var.exp().add(1e-5)))).mul_(-0.5)
+        return (log_var.add(math.log(2 * math.pi)).add_((value.sub(mean).pow_(2)).div_(log_var.exp().add(1e-5)))).mul_(-0.5)
 
     def re_init(self, mean_value=None, log_var_value=None):
         self.re_init_mean(mean_value)

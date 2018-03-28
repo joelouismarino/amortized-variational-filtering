@@ -44,6 +44,12 @@ class LatentVariable(nn.Module):
         """
         raise NotImplementedError
 
+    def re_init_approx_posterior(self):
+        """
+        Abstract method to reinitialize the approximate posterior from the prior.
+        """
+        raise NotImplementedError
+
     def kl_divergence(self, analytical=False):
         """
         Method to compute KL divergence between the approximate posterior and
@@ -54,12 +60,12 @@ class LatentVariable(nn.Module):
                                   divergence for exact evaluation
         """
         # TODO: implement general KL divergence computation
-        raise NotImplementedError
+        # raise NotImplementedError
         # if analytical:
         #     return kld.kl_divergence(self.approx_posterior, self.prior)
         # else:
-        #     z = self.approx_posterior.rsample()
-        #     return self.approx_posterior.log_prob(z) - self.prior.log_prob(z)
+        z = self.approx_post.sample()
+        return self.approx_post.log_prob(z) - self.prior.log_prob(z)
 
     def inference_parameters(self):
         """

@@ -1,3 +1,4 @@
+import torch
 from config import run_config, train_config, data_config, model_config
 from util.logging import init_log, load_checkpoint, save_checkpoint
 from util.plotting import init_plot
@@ -9,20 +10,27 @@ from util.train_val import train, validate
 # initialize logging and plotting
 # log_dir = init_log(run_config)
 # init_plot(log_dir)
+torch.cuda.set_device(run_config['cuda_device'])
 
 # load the data
 train_data, val_data, test_data = load_data(data_config, run_config)
 
 # load the model, optimizers
 if run_config['resume_path']:
+    print('Resuming checkpoint ' + run_config['resume_path'])
     model, optimizers, schedulers = load_checkpoint(run_config['resume_path'])
 else:
+    print('Loading model...')
     model = load_model(model_config)
+    print('Loading optimizers...')
     optimizers, schedulers = load_opt_sched(train_config, model)
+
+print('Putting model on GPU...')
+model.cuda()
 
 # train the model
 while True:
-    train(train_data, model, optimizers, schedulers)
+    train(train_data, model, optimizers)
     if val_data:
         validate(val_data, model)
-    save_checkpoint(model, optimizers, schedulers)
+    save_checkpoint(model, optimizers)

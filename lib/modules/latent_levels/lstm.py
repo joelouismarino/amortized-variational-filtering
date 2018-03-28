@@ -40,7 +40,8 @@ class LSTMLatentLevel(LatentLevel):
             input (Tensor): input to the inference procedure
         """
         input = self._get_encoding_form(input)
-        self.inference_model(input)
+        input = self.inference_model(input)
+        self.latent.infer(input)
 
     def generate(self, input, gen, n_samples):
         """
@@ -52,7 +53,9 @@ class LSTMLatentLevel(LatentLevel):
                             the prior (True)
             n_samples (int): number of samples to draw
         """
-        input = self.generative_model(input)
+        if input is not None:
+            b, s, n = input.data.shape
+            input = self.generative_model(input.view(b * s, n)).view(b, s, -1)
         return self.latent.generate(input, gen=gen, n_samples=n_samples)
 
     def step(self):

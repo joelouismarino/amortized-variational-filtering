@@ -1,3 +1,4 @@
+import math
 import torch.nn as nn
 
 
@@ -44,7 +45,8 @@ class LatentVariableModel(nn.Module):
     def step(self):
         """
         Abstract method for stepping the generative model forward one step in
-        the sequence.
+        the sequence. Should generate the prior on the next step and
+        re-initialize the approximate posterior.
         """
         raise NotImplementedError
 
@@ -55,23 +57,25 @@ class LatentVariableModel(nn.Module):
         """
         raise NotImplementedError
 
-    def kl_divergences(self, averaged=False):
+    def kl_divergences(self, averaged=True):
         """
         Estimate the KL divergence (at each latent level).
 
         Args:
             averaged (boolean): whether to average over the batch dimension
         """
-        # TODO: keep this general across conv, fc
         kl = []
-        for latent_level in self.levels:
-            kl.append(latent_level.latent.kl_divergence(analytical=False).sum(4).sum(3).sum(2).mean(1))
+        for latent_level in self.latent_levels:
+            level_kl = latent_level.latent.kl_divergence(analytical=False)
+            for dim in range(2, len(level_kl.data.shape)):
+                level_kl = level_kl.sum(dim) # sum over data dimensions
+            level_kl = level_kl.mean(1) # average over sample dimension
+            kl.append(level_kl)
         if averaged:
-            [level_kl.mean(dim=0) for level_kl in kl]
-        else:
-            return kl
+            kl = [level_kl.mean(dim=0) for level_kl in kl] # average over batch dimension
+        return kl
 
-    def conditional_log_likelihoods(self, observation, averaged=False):
+    def conditional_log_likelihoods(self, observation, averaged=True):
         """
         Estimate the conditional log-likelihood.
 
@@ -80,15 +84,15 @@ class LatentVariableModel(nn.Module):
             averaged (boolean): whether to average over the batch dimension
         """
         # TODO: keep this general across conv, fc
-        if len(input.data.shape) == 4:
+        if len(observation.data.shape) == 4:
             observation = observation.unsqueeze(1) # add sample dimension
-        log_prob = self.output_dist.log_prob(sample=observation).sub_(np.log(256.))
+        log_prob = self.output_dist.log_prob(value=observation).sub_(math.log(256.))
         log_prob = log_prob.sum(4).sum(3).sum(2).mean(1)
         if averaged:
             log_prob = log_prob.mean(dim=0)
         return log_prob
 
-    def free_energy(self, observation, averaged=False):
+    def free_energy(self, observation, averaged=True):
         """
         Estimate the free energy.
 
@@ -104,7 +108,7 @@ class LatentVariableModel(nn.Module):
         else:
             return lower_bound
 
-    def losses(self, observation, averaged=False):
+    def losses(self, observation, averaged=True):
         """
         Estimate all losses.
 

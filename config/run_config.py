@@ -1,5 +1,5 @@
 run_config = {
-    'batch_size': 1,
+    'batch_size': 10,
     'inference_iterations': 1,
     'cuda_device': 1,
     'resume_path': None,

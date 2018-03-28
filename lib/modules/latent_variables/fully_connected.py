@@ -67,7 +67,7 @@ class FullyConnectedLatentVariable(LatentVariable):
             approx_post_log_var_gate = self.approx_post_log_var_gate(input)
             self.approx_post.log_var = approx_post_log_var_gate * self.approx_post.log_var.detach() \
                                        + (1 - approx_post_log_var_gate) * approx_post_log_var
-        return self.approx_post.sample(n_samples, resample=True)
+        return self.approx_post.sample(resample=True)
 
     def generate(self, input, gen, n_samples):
         """
@@ -79,10 +79,11 @@ class FullyConnectedLatentVariable(LatentVariable):
                             the prior (True)
             n_samples (int): number of samples to draw
         """
-        b, s, n = input.data.shape
-        input = input.view(b * s, n)
-        self.prior.mean = self.prior_mean(input).view(b, s, -1)
-        self.prior.log_var = self.prior_log_var(input).view(b, s, -1)
+        if input is not None:
+            b, s, n = input.data.shape
+            input = input.view(b * s, n)
+            self.prior.mean = self.prior_mean(input).view(b, s, -1)
+            self.prior.log_var = self.prior_log_var(input).view(b, s, -1)
         if gen:
             return self.prior.sample(n_samples, resample=True)
         return self.approx_post.sample(n_samples, resample=True)
@@ -111,10 +112,16 @@ class FullyConnectedLatentVariable(LatentVariable):
         """
         Method to reinitialize the approximate posterior and prior over the variable.
         """
+        self.re_init_approx_posterior()
+        self.prior.re_init()
+
+    def re_init_approx_posterior(self):
+        """
+        Method to reinitialize the approximate posterior.
+        """
         mean = self.prior.mean.data.clone().mean(dim=1)
         log_var = self.prior.log_var.data.clone().mean(dim=1)
         self.approx_post.re_init(mean, log_var)
-        self.prior.re_init()
 
     def step(self):
         """

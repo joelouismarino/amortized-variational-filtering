@@ -15,8 +15,8 @@ def load_opt_sched(train_config, model):
     elif opt_name == 'adam':
         optimizer = opt.Adam
 
-    inf_opt = optimizer(inf_params, lr=train_config['encoder_learning_rate'])
-    gen_opt = optimizer(gen_params, lr=train_config['decoder_learning_rate'])
+    inf_opt = optimizer(inf_params, lr=train_config['inference_learning_rate'])
+    gen_opt = optimizer(gen_params, lr=train_config['generation_learning_rate'])
 
     inf_sched = ExponentialLR(inf_opt, 0.999)
     gen_sched = ExponentialLR(gen_opt, 0.999)

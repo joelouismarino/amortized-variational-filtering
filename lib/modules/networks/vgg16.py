@@ -103,7 +103,7 @@ class decoder(nn.Module):
                 nn.ConvTranspose2d(64, nc, 3, 1, 1),
                 nn.Sigmoid()
                 )
-        self.up = nn.UpsamplingNearest2d(scale_factor=2)
+        self.up = nn.Upsample(scale_factor=2)
 
     def forward(self, input):
         vec, skip = input
