@@ -42,15 +42,16 @@ class SVG(LatentVariableModel):
             latent_config['n_variables'] = 10
             level_config['latent_config'] = latent_config
         elif model_type == 'kth_actions':
-            from lib.modules.networks.vgg16 import encoder, decoder
+            from lib.modules.networks.vgg_64 import encoder, decoder
             self.encoder = encoder(128, 1)
             self.decoder = decoder(128, 2)
             latent_config['n_variables'] = 32
             level_config['latent_config'] = latent_config
         elif model_type == 'bair_robot_pushing':
-            from lib.modules.networks.vgg16 import encoder, decoder
+            from lib.modules.networks.vgg_64 import encoder, decoder
             self.encoder = encoder(128, 3)
-            self.decoder = decoder(128, 6)
+            # self.decoder = decoder(128, 6)
+            self.decoder = decoder(128, 3)
             latent_config['n_variables'] = 64
             level_config['latent_config'] = latent_config
             # if inference_procedure == 'direct':
@@ -68,6 +69,7 @@ class SVG(LatentVariableModel):
         self.decoder_lstm_output = FullyConnectedLayer({'n_in': 256, 'n_out': 128,
                                                         'non_linearity': 'tanh'})
         self.output_dist = Normal()
+        self.output_dist.log_var = nn.Parameter(torch.zeros(32, 1, 3, 64, 64))
 
     def _get_encoding_form(self, observation):
         """
@@ -111,8 +113,13 @@ class SVG(LatentVariableModel):
         g = self.decoder_lstm(torch.cat([z, prev_h], dim=2).view(batch_size * n_samples, -1))
         g = self.decoder_lstm_output(g)
         output = self.decoder([g, prev_skip])
-        self.output_dist.mean, self.output_dist.log_var = output[:, :3, :, :], output[:, 3:, :, :]
-        return self.output_dist.sample()
+        # TODO: reshape back into batch_size x n_samples x ...
+        b, _, h, w = output.data.shape
+        # output = output.view(b, -1, 6, h, w)
+        output = output.view(b, -1, 3, h, w)
+        self.output_dist.mean = torch.nn.Sigmoid()(output[:, :, :3, :, :])
+        # self.output_dist.log_var = output[:, :, 3:, :, :]
+        return torch.clamp(self.output_dist.sample(), 0., 1.)
 
     def step(self):
         """
@@ -141,7 +148,7 @@ class SVG(LatentVariableModel):
         # clear the hidden state
         self._h = self._skip = None
         # set the prior and approx. posterior
-        self._prev_h, self._prev_skip = self.encoder(self.get_encoding_form(input))
+        self._prev_h, self._prev_skip = self.encoder(self._get_encoding_form(input))
         self.latent_levels[0].generate(self._prev_h.unsqueeze(1), gen=True, n_samples=1)
         self.latent_levels[0].latent.re_init_approx_posterior()
 
@@ -149,7 +156,7 @@ class SVG(LatentVariableModel):
         """
         Method for obtaining the inference parameters.
         """
-        params = []
+        params = nn.ParameterList()
         params.extend(list(self.encoder.parameters()))
         params.extend(list(self.latent_levels[0].inference_parameters()))
         return params
@@ -158,7 +165,7 @@ class SVG(LatentVariableModel):
         """
         Method for obtaining the generative parameters.
         """
-        params = []
+        params = nn.ParameterList()
         params.extend(list(self.decoder.parameters()))
         params.extend(list(self.latent_levels[0].generative_parameters()))
         params.extend(list(self.decoder_lstm.parameters()))

@@ -100,13 +100,13 @@ class LatentVariableModel(nn.Module):
             observation (tensor): observation to evaluate
             averaged (boolean): whether to average over the batch dimension
         """
-        cond_log_like = self.conditional_log_likelihoods(observation)
-        kl = sum(self.kl_divergences())
-        lower_bound = cond_log_like - kl
+        cond_log_like = self.conditional_log_likelihoods(observation, averaged=False)
+        kl = sum(self.kl_divergences(averaged=False))
+        free_energy = - (cond_log_like - kl)
         if averaged:
-            return lower_bound.mean(dim=0)
+            return free_energy.mean(dim=0)
         else:
-            return lower_bound
+            return free_energy
 
     def losses(self, observation, averaged=True):
         """
@@ -116,13 +116,13 @@ class LatentVariableModel(nn.Module):
             observation (tensor): observation to evaluate
             averaged (boolean): whether to average over the batch dimension
         """
-        cond_log_like = self.conditional_log_likelihoods(observation)
-        kl = self.kl_divergences()
-        lower_bound = cond_log_like - sum(kl)
+        cond_log_like = self.conditional_log_likelihoods(observation, averaged=False)
+        kl = self.kl_divergences(averaged=False)
+        free_energy = -(cond_log_like - sum(kl))
         if averaged:
-            return lower_bound.mean(dim=0), cond_log_like.mean(dim=0), [level_kl.mean(dim=0) for level_kl in kl]
+            return free_energy.mean(dim=0), cond_log_like.mean(dim=0), [level_kl.mean(dim=0) for level_kl in kl]
         else:
-            return lower_bound, cond_log_like, kl
+            return free_energy, cond_log_like, kl
 
     def inference_parameters(self):
         """

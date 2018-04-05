@@ -1,3 +1,4 @@
+import torch.nn as nn
 from latent_level import LatentLevel
 from lib.modules.networks import LSTMNetwork
 from lib.modules.latent_variables import FullyConnectedLatentVariable
@@ -79,7 +80,7 @@ class LSTMLatentLevel(LatentLevel):
         """
         Method to obtain inference parameters.
         """
-        params = []
+        params = nn.ParameterList()
         params.extend(list(self.inference_model.parameters()))
         params.extend(list(self.latent.inference_parameters()))
         return params
@@ -88,7 +89,7 @@ class LSTMLatentLevel(LatentLevel):
         """
         Method to obtain generative parameters.
         """
-        params = []
+        params = nn.ParameterList()
         params.extend(list(self.generative_model.parameters()))
         params.extend(list(self.latent.generative_parameters()))
         return params

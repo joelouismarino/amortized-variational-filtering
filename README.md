@@ -26,7 +26,8 @@ PyTorch implementation of (amortized) variational filtering
 - [x] Figure out why the loss is becoming negative...it was an issue with the sampling dimension.
 - [x] Implement saving and loading of models, optimizers.
 - [x] Find a set of simple videos to benchmark the model on.
-- [ ] Plot the losses.
+- [x] Plot the losses.
+- [ ] Plot losses on same plot when resuming a checkpoint.
 
 ## For (Much) Later
 - [ ] Implement change of variables on observed variables.

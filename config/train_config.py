@@ -1,5 +1,5 @@
 train_config = {
     'optimizer': 'adam',
-    'inference_learning_rate': 0.00001,
-    'generation_learning_rate': 0.00001
+    'inference_learning_rate': 0.001,
+    'generation_learning_rate': 0.001
 }

@@ -31,16 +31,50 @@ def load_dataset(data_config, run_config):
             raise ValueError('BLIZZARD dataset does not exist. Please manually \
                              download the dataset by obtaining a license from \
                              http://www.cstr.ed.ac.uk/projects/blizzard/2013/lessac_blizzard2013/, \
-                             then create a directory called blizzard in your data directory.')
-        # TODO: load BLIZZARD
+                             then copy the downloaded files into a directory \
+                             called blizzard in your data directory.')
+
+        files = ['BlackBeauty.zip', 'mansfield1.zip', 'mansfield2.zip', 'mansfield3.zip',
+                 'pride_and_prejudice1.zip', 'pride_and_prejudice2.zip',
+                 'pride_and_prejudice3.zip', 'Lessac_Blizzard2013_CatherineByers_train.tar.bz2']
+
+        for f in files:
+            pass
+
+
+        from datasets.blizzard import BLIZZARD
+
+        train = BLIZZARD(os.path.join(data_path, 'blizzard', 'train'))
+        val = BLIZZARD(os.path.join(data_path, 'blizzard', 'val'))
+        test = BLIZZARD(os.path.join(data_path, 'blizzard', 'test'))
 
     elif dataset_name == 'timit':
         if not os.path.exists(os.path.join(data_path, 'timit')):
             raise ValueError('TIMIT dataset does not exist. Please manually \
-                             download the dataset by obtaining a license from \
+                             download the dataset from \
                              https://github.com/philipperemy/timit, \
-                             then create a directory called timit in your data directory.')
-        # TODO: load TIMIT
+                             then place the .zip file in a directory called \
+                             timit in your data directory.')
+
+        if os.path.exists(os.path.join(data_path, 'timit', 'TIMIT.zip')):
+            print('Unzipping TIMIT dataset...')
+            zip_ref = ZipFile(os.path.join(data_path, 'timit', 'TIMIT.zip'), 'r')
+            zip_ref.extractall(os.path.join(data_path, 'timit'))
+            zip_ref.close()
+            os.remove(os.path.join(data_path, 'timit', 'TIMIT.zip'))
+            print('Done.')
+
+        if not os.path.exists(os.path.join(data_path, 'timit', 'train')):
+            print('Converting TIMIT dataset...')
+            from misc_data_util.convert_timit import convert
+            convert(os.path.join(data_path, 'timit'))
+            print('Done.')
+
+        from datasets.timit import TIMIT
+
+        train = TIMIT(os.path.join(data_path, 'timit', 'train', 'train.npz'))
+        val = TIMIT(os.path.join(data_path, 'timit', 'val', 'val.npz'))
+        test = TIMIT(os.path.join(data_path, 'timit', 'test', 'test.npz'))
 
     ############################################################################
     ## Handwriting datasets
@@ -110,90 +144,90 @@ def load_dataset(data_config, run_config):
         # TODO: load stochastic_moving_MNIST
 
     elif dataset_name == 'kth_actions':
-        if not os.path.exists(os.path.join(data_path, 'KTH_actions')):
-            os.makedirs(os.path.join(data_path, 'KTH_actions'))
-        if not os.path.exists(os.path.join(data_path, 'KTH_actions', 'train')):
+        if not os.path.exists(os.path.join(data_path, 'kth_actions')):
+            os.makedirs(os.path.join(data_path, 'kth_actions'))
+        if not os.path.exists(os.path.join(data_path, 'kth_actions', 'train')):
             print('Downloading KTH Actions dataset...')
             actions = ['walking', 'jogging', 'running', 'boxing', 'handwaving', 'handclapping']
             for action in actions:
                 print('Downloading ' + action + '...')
                 save('http://www.nada.kth.se/cvap/actions/' + action + '.zip',
-                    os.path.join(data_path, 'KTH_actions', action + '.zip'))
+                    os.path.join(data_path, 'kth_actions', action + '.zip'))
                 print('\n')
             print('Done.')
 
             print('Unzipping KTH Actions dataset...')
             for action in actions:
                 print('Unzipping ' + action + '...')
-                zip_ref = ZipFile(os.path.join(data_path, 'KTH_actions', action + '.zip'), 'r')
-                os.makedirs(os.path.join(data_path, 'KTH_actions', action))
-                zip_ref.extractall(os.path.join(data_path, 'KTH_actions', action))
+                zip_ref = ZipFile(os.path.join(data_path, 'kth_actions', action + '.zip'), 'r')
+                os.makedirs(os.path.join(data_path, 'kth_actions', action))
+                zip_ref.extractall(os.path.join(data_path, 'kth_actions', action))
                 zip_ref.close()
-                os.remove(os.path.join(data_path, 'KTH_actions', action + '.zip'))
+                os.remove(os.path.join(data_path, 'kth_actions', action + '.zip'))
             print('Done.')
 
             print('Processing KTH Actions dataset...')
             from misc_data_util.convert_kth_actions import convert
-            convert(os.path.join(data_path, 'KTH_actions'))
+            convert(os.path.join(data_path, 'kth_actions'))
             import shutil
             for action in actions:
-                shutil.rmtree(os.path.join(data_path, 'KTH_actions', action))
+                shutil.rmtree(os.path.join(data_path, 'kth_actions', action))
             print('Done.')
 
         from datasets.kth_actions import KTHActions
         train_trans = trans.Compose([trans.RandomHorizontalFlip(),
                                      trans.Resize(data_config['img_size']),
-                                     trans.RandomSequenceCrop(data_config['seqeunce_length']),
+                                     trans.RandomSequenceCrop(data_config['sequence_length']),
                                      trans.ToTensor(),
                                      trans.ConcatSequence()])
         val_test_trans = trans.Compose([trans.Resize(data_config['img_size']),
-                                    trans.RandomSequenceCrop(data_config['seqeunce_length']),
+                                    trans.RandomSequenceCrop(data_config['sequence_length']),
                                     trans.ToTensor(),
                                     trans.ConcatSequence()])
-        train = KTHActions(os.path.join(data_path, 'KTH_actions', 'train'), train_trans)
-        val   = KTHActions(os.path.join(data_path, 'KTH_actions', 'val'), val_test_trans)
-        test  = KTHActions(os.path.join(data_path, 'KTH_actions', 'test'), val_test_trans)
+        train = KTHActions(os.path.join(data_path, 'kth_actions', 'train'), train_trans)
+        val   = KTHActions(os.path.join(data_path, 'kth_actions', 'val'), val_test_trans)
+        test  = KTHActions(os.path.join(data_path, 'kth_actions', 'test'), val_test_trans)
 
     elif dataset_name == 'bair_robot_pushing':
-        if not os.path.exists(os.path.join(data_path, 'BAIR_robot_pushing')):
-            os.makedirs(os.path.join(data_path, 'BAIR_robot_pushing'))
+        if not os.path.exists(os.path.join(data_path, 'bair_robot_pushing')):
+            os.makedirs(os.path.join(data_path, 'bair_robot_pushing'))
 
-        if not os.path.exists(os.path.join(data_path, 'BAIR_robot_pushing', 'train')):
+        if not os.path.exists(os.path.join(data_path, 'bair_robot_pushing', 'train')):
             print('Downloading BAIR Robot Pushing dataset...')
             save('http://rail.eecs.berkeley.edu/datasets/bair_robot_pushing_dataset_v0.tar',
-                os.path.join(data_path, 'BAIR_robot_pushing', 'bair_robot_pushing_dataset_v0.tar'))
+                os.path.join(data_path, 'bair_robot_pushing', 'bair_robot_pushing_dataset_v0.tar'))
             print('Done.')
 
             print('Untarring BAIR Robot Pushing dataset...')
-            tar = tarfile.open(os.path.join(data_path, 'BAIR_robot_pushing', 'bair_robot_pushing_dataset_v0.tar'))
-            tar.extractall(os.path.join(data_path, 'BAIR_robot_pushing'))
+            tar = tarfile.open(os.path.join(data_path, 'bair_robot_pushing', 'bair_robot_pushing_dataset_v0.tar'))
+            tar.extractall(os.path.join(data_path, 'bair_robot_pushing'))
             tar.close()
-            os.remove(os.path.join(data_path, 'BAIR_robot_pushing', 'bair_robot_pushing_dataset_v0.tar'))
+            os.remove(os.path.join(data_path, 'bair_robot_pushing', 'bair_robot_pushing_dataset_v0.tar'))
             print('Done.')
 
             print('Converting TF records...')
             from misc_data_util.convert_bair import convert
-            convert(os.path.join(data_path, 'BAIR_robot_pushing'))
+            convert(os.path.join(data_path, 'bair_robot_pushing'))
             import shutil
-            shutil.rmtree(os.path.join(data_path, 'BAIR_robot_pushing', 'softmotion30_44k'))
+            shutil.rmtree(os.path.join(data_path, 'bair_robot_pushing', 'softmotion30_44k'))
             print('Done.')
 
         from datasets.bair_robot_pushing import BAIRRobotPushing
         train_trans = trans.Compose([trans.RandomHorizontalFlip(),
                                      trans.Resize(data_config['img_size']),
-                                     trans.RandomSequenceCrop(data_config['seqeunce_length']),
+                                     trans.RandomSequenceCrop(data_config['sequence_length']+1),
                                      trans.ToTensor(),
                                      trans.ConcatSequence()])
         test_trans = trans.Compose([trans.Resize(data_config['img_size']),
-                                    trans.RandomSequenceCrop(data_config['seqeunce_length']),
+                                    trans.RandomSequenceCrop(data_config['sequence_length']+1),
                                     trans.ToTensor(),
                                     trans.ConcatSequence()])
-        train = BAIRRobotPushing(os.path.join(data_path, 'BAIR_robot_pushing', 'train'), train_trans)
-        test  = BAIRRobotPushing(os.path.join(data_path, 'BAIR_robot_pushing', 'test'), test_trans)
+        train = BAIRRobotPushing(os.path.join(data_path, 'bair_robot_pushing', 'train'), train_trans)
+        test  = BAIRRobotPushing(os.path.join(data_path, 'bair_robot_pushing', 'test'), test_trans)
 
     elif dataset_name == 'youtube':
         pass
-    
+
     else:
         raise Exception('Dataset name not found.')
 

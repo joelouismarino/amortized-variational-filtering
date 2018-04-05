@@ -1,4 +1,5 @@
 import os
+import cPickle as pickle
 
 
 def set_gpu_recursive(var, gpu_id):
@@ -21,3 +22,12 @@ def get_last_epoch(path):
             if epoch > last_epoch:
                 last_epoch = epoch
     return last_epoch
+
+
+def update_metric(file_name, value):
+    if os.path.exists(file_name):
+        metric = pickle.load(open(file_name, 'r'))
+        metric.append(value)
+        pickle.dump(metric, open(file_name, 'w'))
+    else:
+        pickle.dump([value], open(file_name, 'w'))

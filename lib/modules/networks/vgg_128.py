@@ -100,8 +100,7 @@ class decoder(nn.Module):
         # 128 x 128
         self.upc6 = nn.Sequential(
                 vgg_layer(64*2, 64),
-                nn.ConvTranspose2d(64, nc, 3, 1, 1),
-                nn.Sigmoid()
+                nn.ConvTranspose2d(64, nc, 3, 1, 1)
                 )
         self.up = nn.Upsample(scale_factor=2)
 

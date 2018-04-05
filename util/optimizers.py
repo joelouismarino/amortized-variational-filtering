@@ -22,3 +22,10 @@ def load_opt_sched(train_config, model):
     gen_sched = ExponentialLR(gen_opt, 0.999)
 
     return (inf_opt, gen_opt), (inf_sched, gen_sched)
+
+
+def load_sched(optimizers, last_epoch):
+    inf_opt, gen_opt = optimizers
+    inf_sched = ExponentialLR(inf_opt, 0.999, last_epoch=last_epoch)
+    gen_sched = ExponentialLR(gen_opt, 0.999, last_epoch=last_epoch)
+    return (inf_sched, gen_sched)

@@ -79,8 +79,7 @@ class decoder(nn.Module):
         self.upc5 = dcgan_upconv(nf * 2 * 2, nf)
         # state size. (nf) x 64 x 64
         self.upc6 = nn.Sequential(
-                nn.ConvTranspose2d(nf * 2, nc, 4, 2, 1),
-                nn.Sigmoid()
+                nn.ConvTranspose2d(nf * 2, nc, 4, 2, 1)
                 # state size. (nc) x 128 x 128
                 )
 

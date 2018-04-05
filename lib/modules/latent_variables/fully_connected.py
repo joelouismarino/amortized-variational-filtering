@@ -88,26 +88,6 @@ class FullyConnectedLatentVariable(LatentVariable):
             return self.prior.sample(n_samples, resample=True)
         return self.approx_post.sample(n_samples, resample=True)
 
-    # def kl_divergence(self, analytical=False):
-    #     if analytical:
-    #         pass
-    #     else:
-    #         post_log_prob = self.posterior.log_prob(self.posterior.sample())
-    #         prior_log_prob =  self.prior.log_prob(self.posterior.sample())
-    #         return post_log_prob - prior_log_prob
-    #
-    # def error(self, averaged=True, normalized=False):
-    #     sample = self.posterior.sample()
-    #     n_samples = sample.data.shape[1]
-    #     prior_mean = self.prior.mean.detach()
-    #     err = sample - prior_mean[:n_samples]
-    #     if normalized:
-    #         prior_log_var = self.prior.log_var.detach()
-    #         err /= torch.exp(prior_log_var + 1e-7)
-    #     if averaged:
-    #         err = err.mean(dim=1)
-    #     return err
-
     def re_init(self):
         """
         Method to reinitialize the approximate posterior and prior over the variable.
@@ -133,7 +113,7 @@ class FullyConnectedLatentVariable(LatentVariable):
         """
         Method to obtain inference parameters.
         """
-        params = []
+        params = nn.ParameterList()
         params.extend(list(self.approx_post_mean.parameters()))
         params.extend(list(self.approx_post_log_var.parameters()))
         if self.inference_procedure != 'direct':
@@ -145,7 +125,7 @@ class FullyConnectedLatentVariable(LatentVariable):
         """
         Method to obtain generative parameters.
         """
-        params = []
+        params = nn.ParameterList()
         params.extend(list(self.prior_mean.parameters()))
         params.extend(list(self.prior_log_var.parameters()))
         return params

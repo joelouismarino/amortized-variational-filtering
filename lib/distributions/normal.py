@@ -68,14 +68,23 @@ class Normal(Distribution):
         return (log_var.add(math.log(2 * math.pi)).add_((value.sub(mean).pow_(2)).div_(log_var.exp().add(1e-5)))).mul_(-0.5)
 
     def re_init(self, mean_value=None, log_var_value=None):
+        """
+        Re-initializes the distribution.
+
+        Args:
+            mean_value (tensor): the value to set as the mean, defaults to zero
+            log_var_value (tensor): the value to set as the log variance,
+                                    defaults to zero
+        """
         self.re_init_mean(mean_value)
         self.re_init_log_var(log_var_value)
 
     def re_init_mean(self, value):
         """
         Resets the mean to a particular value.
-        :param value: the value to set as the mean, defaults to zero
-        :return: None
+
+        Args:
+            value (tensor): the value to set as the mean, defaults to zero
         """
         mean = value if value is not None else self.mean_reset_value.data.unsqueeze(1)
         self.mean = Variable(mean, requires_grad=True)
@@ -84,8 +93,9 @@ class Normal(Distribution):
     def re_init_log_var(self, value):
         """
         Resets the log variance to a particular value.
-        :param value: the value to set as the log variance, defaults to zero
-        :return: None
+
+        Args:
+            value (tensor): the value to set as the log variance, defaults to zero
         """
         log_var = value if value is not None else self.log_var_reset_value.data.unsqueeze(1)
         self.log_var = Variable(log_var, requires_grad=True)

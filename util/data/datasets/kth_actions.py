@@ -24,7 +24,9 @@ class KTHActions(Dataset):
     def __getitem__(self, ind):
         # load the images from the ind directory to get list of PIL images
         img_names = os.listdir(os.path.join(self.path, self.video_list[ind]))
-        imgs = [Image.open(os.path.join(self.path, self.video_list[ind], i)) for i in img_names]
+        img_names = [img_name.split('.')[0] for img_name in img_names]
+        img_names.sort(key=float)
+        imgs = [Image.open(os.path.join(self.path, self.video_list[ind], i + '.png')) for i in img_names]
         if self.transform is not None:
             # apply the image/video transforms
             imgs = self.transform(imgs)

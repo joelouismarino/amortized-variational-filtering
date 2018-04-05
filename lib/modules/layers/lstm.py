@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 from torch.nn import init, Parameter
 from layer import Layer
+import util.dtypes as dt
 
 
 class LSTMLayer(Layer):
@@ -26,8 +27,8 @@ class LSTMLayer(Layer):
         n_in = layer_config['n_in']
         n_units = layer_config['n_units']
         self.lstm = nn.LSTMCell(n_in, n_units)
-        self.initial_hidden = Parameter(torch.zeros(1, n_units))
-        self.initial_cell = Parameter(torch.zeros(1, n_units))
+        self.initial_hidden = Parameter(dt.zeros(1, n_units))
+        self.initial_cell = Parameter(dt.zeros(1, n_units))
         self.hidden_state = self._prev_hidden_state = None
         self.cell_state = None
 
@@ -36,9 +37,12 @@ class LSTMLayer(Layer):
         Method to perform forward computation.
         """
         if self.hidden_state is None:
+            # re-initialize the hidden state
             self.hidden_state = self.initial_hidden.repeat(input.data.shape[0], 1)
         if self.cell_state is None:
+            # re-initialize the cell state
             self.cell_state = self.initial_cell.repeat(input.data.shape[0], 1)
+        # perform forward computation
         self.hidden_state, self.cell_state = self.lstm.forward(input, (self.hidden_state, self.cell_state))
         return self.hidden_state
 
