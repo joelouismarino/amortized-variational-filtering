@@ -36,7 +36,8 @@ model.cuda()
 
 while True:
     # training
-    out = train(train_data, model, optimizers)
+    # out = train(train_data, model, optimizers)
+    out = train(test_data, model, optimizers)
     logger.log(out, 'Train'); plotter.plot(out, 'Train')
     if val_data:
         # validation

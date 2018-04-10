@@ -140,7 +140,7 @@ class VRNN(LatentVariableModel):
         z = self.latent_levels[0].generate(self._prev_h.unsqueeze(1), gen=gen, n_samples=n_samples)
         self._z_enc = self.z_model(z)
         self._h = self.lstm(torch.cat([self._x_enc, self._z_enc[:, 0]], dim=1))
-        output = self.decoder_model(torch.cat([self._z_enc, self._h.unsqueeze(1)], dim=2))
+        output = self.decoder_model(torch.cat([self._z_enc, self._prev_h.unsqueeze(1)], dim=2))
         self.output_dist.mean = self.output_mean(output)
         # self.output_dist.log_var = self.output_log_var(output)
         return self.output_dist.sample()

@@ -81,7 +81,7 @@ def train(data, model, optimizers):
 
                 # form the prior on the next step
                 model.step()
-
+            
             if np.isnan(free_energy_loss.data.cpu().numpy()):
                 print('Nan encountered during training...')
                 import ipdb; ipdb.set_trace()

@@ -8,7 +8,7 @@ PyTorch implementation of (amortized) variational filtering
 - [x] Batch data loading (multiple videos).
 - [x] Implement other data loading options (directory of files).
 - [x] Load standard benchmark sequence data sets.
-- [ ] Rewrite TIMIT dataset.
+- [x] Rewrite TIMIT dataset.
 - [ ] Get Blizzard dataset working.
 - [ ] Get IAM OnDB dataset working.
 - [ ] Get YouTube dataset working again. Make closer to PyTorch dataset.
@@ -33,4 +33,5 @@ PyTorch implementation of (amortized) variational filtering
 - [x] Find a set of simple videos to benchmark the model on.
 - [x] Plot the losses.
 - [ ] Output video, audio, handwriting reconstructions.
+- [ ] Option to load config from experiment directory
 - [ ] Plot losses on same plot when resuming a checkpoint.
