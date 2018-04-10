@@ -1,4 +1,5 @@
 import math
+import torch
 from torch.nn import Parameter
 from torch.autograd import Variable
 from distribution import Distribution
@@ -10,8 +11,8 @@ class Normal(Distribution):
     A normal (Gaussian) density.
 
     Args:
-        mean (tensor): the mean of the distribution
-        log_var (tensor): the log variance of the distribution
+        mean (tensor): the mean of the density
+        log_var (tensor): the log variance of the density
     """
     def __init__(self, mean=None, log_var=None):
         super(Normal, self).__init__()
@@ -28,8 +29,6 @@ class Normal(Distribution):
         Args:
             n_samples (int): number of samples to draw
             resample (bool): whether to resample or just use current sample
-
-        Return: a tensor of samples
         """
         if self._sample is None or resample:
             mean = self.mean
@@ -46,26 +45,53 @@ class Normal(Distribution):
 
     def log_prob(self, value):
         """
-        Estimate the log probability, evaluated at the sample.
+        Estimate the log probability (density), evaluated at the value or interval.
 
         Args:
-            value (Variable or tensor): the sample to evaluate
-
-        Return: an estimate of log probabilities
+            value (Variable, tensor, or tuple): the value or interval at/over
+                                                which to evaluate
         """
-        if value is None:
-            value = self.sample()
-        assert self.mean is not None and self.log_var is not None, 'Mean or log variance are None.'
+        if type(value) == tuple:
+            # evaluate the log probability mass within the interval
+            return torch.log(self.cdf(value[1]) - self.cdf(value[0]) + 1e-6)
+        else:
+            # evaluate the log density at the value
+            if value is None:
+                value = self.sample()
+            assert self.mean is not None and self.log_var is not None, 'Mean or log variance are None.'
+
+            n_samples = value.data.shape[1]
+            mean = self.mean
+            log_var = self.log_var
+            # unsqueeze the parameters along the sample dimension
+            if len(mean.size()) == 2:
+                mean = mean.unsqueeze(1).repeat(1, n_samples, 1)
+                log_var = log_var.unsqueeze(1).repeat(1, n_samples, 1)
+            elif len(mean.size()) == 4:
+                mean = mean.unsqueeze(1).repeat(1, n_samples, 1, 1, 1)
+                log_var = log_var.unsqueeze(1).repeat(1, n_samples, 1, 1, 1)
+
+            return (log_var.add(math.log(2 * math.pi)).add_((value.sub(mean).pow_(2)).div_(log_var.exp().add(1e-5)))).mul_(-0.5)
+
+    def cdf(self, value):
+        """
+        Evaluate the cumulative distribution function at the value.
+
+        Args:
+            value (Variable, tensor): the value at which to evaluate the cdf
+        """
         n_samples = value.data.shape[1]
         mean = self.mean
-        log_var = self.log_var
+        std = self.log_var.mul(0.5).exp_()
+        # unsqueeze the parameters along the sample dimension
         if len(mean.size()) == 2:
             mean = mean.unsqueeze(1).repeat(1, n_samples, 1)
-            log_var = log_var.unsqueeze(1).repeat(1, n_samples, 1)
+            std = std.unsqueeze(1).repeat(1, n_samples, 1)
         elif len(mean.size()) == 4:
             mean = mean.unsqueeze(1).repeat(1, n_samples, 1, 1, 1)
-            log_var = log_var.unsqueeze(1).repeat(1, n_samples, 1, 1, 1)
-        return (log_var.add(math.log(2 * math.pi)).add_((value.sub(mean).pow_(2)).div_(log_var.exp().add(1e-5)))).mul_(-0.5)
+            std = std.unsqueeze(1).repeat(1, n_samples, 1, 1, 1)
+
+        return (1 + torch.erf((value - mean) / (math.sqrt(2) * std).add(1e-5))).mul_(0.5)
 
     def re_init(self, mean_value=None, log_var_value=None):
         """

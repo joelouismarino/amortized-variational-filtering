@@ -2,10 +2,10 @@ import torch
 import torch.nn as nn
 from lib.distributions import Normal
 from latent_variable import LatentVariable
-from ..layers import ConvLayer
+from ..layers import ConvolutionalLayer
 
 
-class ConvLatentVariable(LatentVariable):
+class ConvolutionalLatentVariable(LatentVariable):
     """
     A convolutional latent variable.
 

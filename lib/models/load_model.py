@@ -18,10 +18,10 @@ def load_model(model_config):
         from svg import SVG
         return SVG(model_config)
     elif model_name in ['conv', 'convolutional']:
-        from convolutional import ConvDLVM
-        return ConvDLVM(model_config)
+        from convolutional import ConvolutionalDLVM
+        return ConvolutionalDLVM(model_config)
     elif model_name in ['fc', 'fully_connected']:
         from fully_connected import FullyConnectedDLVM
         return FullyConnectedDLVM(model_config)
     else:
-        raise Exception('Model architecture name not found.')
+        raise Exception('Model architecture not found.')

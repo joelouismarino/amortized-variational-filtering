@@ -3,7 +3,7 @@ from torch.utils.data.dataloader import default_collate
 
 def transposed_collate(batch):
     """
-    Wrapper around the default collate function to return sequences of pytorch
+    Wrapper around the default collate function to return sequences of PyTorch
     tensors with sequence step as the first dimension and batch index as the
     second dimension.
 

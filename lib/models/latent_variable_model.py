@@ -1,5 +1,6 @@
 import math
 import torch.nn as nn
+from lib.distributions import Normal
 
 
 class LatentVariableModel(nn.Module):
@@ -10,6 +11,7 @@ class LatentVariableModel(nn.Module):
     def __init__(self, model_config):
         super(LatentVariableModel, self).__init__()
         self.model_config = model_config
+        self.output_interval = None
 
     def _construct(self, model_config):
         """
@@ -83,13 +85,27 @@ class LatentVariableModel(nn.Module):
             observation (tensor): observation to evaluate
             averaged (boolean): whether to average over the batch dimension
         """
-        # TODO: keep this general across conv, fc
-        if len(observation.data.shape) == 4:
-            observation = observation.unsqueeze(1) # add sample dimension
-        log_prob = self.output_dist.log_prob(value=observation).sub_(math.log(256.))
-        log_prob = log_prob.sum(4).sum(3).sum(2).mean(1)
+        # add sample dimension
+        if len(observation.data.shape) in [2, 4]:
+            observation = observation.unsqueeze(1)
+
+        if self.output_interval is not None:
+            observation = (observation, observation + self.output_interval)
+
+        log_prob = self.output_dist.log_prob(value=observation)
+
+        while len(log_prob.data.shape) > 2:
+            # sum over all of the spatial dimensions
+            last_dim = len(log_prob.data.shape) - 1
+            log_prob = log_prob.sum(last_dim)
+
+        # average over sample dimension
+        log_prob = log_prob.mean(1)
+
         if averaged:
+            # average over batch dimension
             log_prob = log_prob.mean(dim=0)
+
         return log_prob
 
     def free_energy(self, observation, averaged=True):

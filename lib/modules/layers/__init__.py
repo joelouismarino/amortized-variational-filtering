@@ -1,3 +1,3 @@
-from convolutional import ConvLayer
+from convolutional import ConvolutionalLayer
 from fully_connected import FullyConnectedLayer
 from lstm import LSTMLayer

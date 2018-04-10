@@ -77,12 +77,12 @@ class LSTMNetwork(Network):
                 input = torch.cat((input_orig, layer_output), dim=1)
         return input
 
-    def re_init(self):
+    def re_init(self, input=None):
         """
         Method to reinitialize the hidden state and cell state within each layer.
         """
         for layer in self.layers:
-            layer.re_init()
+            layer.re_init(input)
 
     def step(self):
         """

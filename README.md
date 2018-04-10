@@ -8,6 +8,9 @@ PyTorch implementation of (amortized) variational filtering
 - [x] Batch data loading (multiple videos).
 - [x] Implement other data loading options (directory of files).
 - [x] Load standard benchmark sequence data sets.
+- [ ] Rewrite TIMIT dataset.
+- [ ] Get Blizzard dataset working.
+- [ ] Get IAM OnDB dataset working.
 - [ ] Get YouTube dataset working again. Make closer to PyTorch dataset.
 
 ## Model To-Do:
@@ -18,19 +21,16 @@ PyTorch implementation of (amortized) variational filtering
 - [x] Fix issue with using GPU 1.
 - [x] Fix issue with dimensions for using errors, gradients.
 - [x] Implement latent variable model base class.
-- [ ] Fix issue with dimensions for using concat networks.
-- [ ] Implement baseline dynamical models (VRNN, SRNN, DKS, etc.)
-- [ ] Implement inference techniques for other models.
+- [x] Use CDF for Gaussian conditional log likelihood evaluation.
+- [x] Implement SVG
+- [x] Implement VRNN
+- [ ] Implement SRNN
+- [ ] Implement DKS
 
 ## Overall To-Do:
 - [x] Figure out why the loss is becoming negative...it was an issue with the sampling dimension.
 - [x] Implement saving and loading of models, optimizers.
 - [x] Find a set of simple videos to benchmark the model on.
 - [x] Plot the losses.
+- [ ] Output video, audio, handwriting reconstructions.
 - [ ] Plot losses on same plot when resuming a checkpoint.
-
-## For (Much) Later
-- [ ] Implement change of variables on observed variables.
-- [ ] Implement change of variables on approx. posterior and prior.
-- [ ] Make separate state / cause latent variables.
-- [ ] Generalized coordinates.

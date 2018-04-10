@@ -1,11 +1,11 @@
 import torch
 from latent_level import LatentLevel
-from lib.modules.layers import ConvLayer
-from lib.modules.networks import ConvNetwork
-from lib.modules.latent_variables import ConvLatentVariable
+from lib.modules.layers import ConvolutionalLayer
+from lib.modules.networks import ConvolutionalNetwork
+from lib.modules.latent_variables import ConvolutionalLatentVariable
 
 
-class ConvLatentLevel(LatentLevel):
+class ConvolutionalLatentLevel(LatentLevel):
     """
     A convolutional latent level with inference and generative procedures,
     optional deterministic connections.

@@ -1,4 +1,5 @@
 import torch
+import torch.nn as nn
 from latent_level import LatentLevel
 from lib.modules.layers import FullyConnectedLayer
 from lib.modules.networks import FullyConnectedNetwork
@@ -7,43 +8,88 @@ from lib.modules.latent_variables import FullyConnectedLatentVariable
 
 class FullyConnectedLatentLevel(LatentLevel):
     """
-    A fully-connected latent level with encoder and decoder networks,
-    optional deterministic connections.
+    Latent level with fully connected encoding and decoding functions.
+
+    Args:
+        level_config (dict): dictionary containing level configuration parameters
     """
-    def __init__(self, n_latent, n_det, encoder_arch, decoder_arch, encoding_form,
-                 const_prior_var, norm_flow):
-        super(FullyConnectedLatentLevel, self).__init__()
-        self.n_latent = n_latent
-        self.n_det = n_det
-        self.encoding_form = encoding_form
+    def __init__(self, level_config):
+        super(FullyConnectedLatentLevel, self).__init__(level_config)
+        self._construct(level_config)
 
-        self.encoder = FullyConnectedNetwork(**encoder_arch)
-        self.decoder = FullyConnectedNetwork(**decoder_arch)
+    def _construct(self, level_config):
+        """
+        Method to construct the latent level from the level_config dictionary
+        """
+        self.inference_model = FullyConnectedNetwork(level_config['inference_config'])
+        self.generative_model = FullyConnectedNetwork(level_config['generative_config'])
+        self.latent = FullyConnectedLatentVariable(level_config['latent_config'])
+        self.inference_procedure = level_config['inference_procedure']
 
-        var_input_sizes = (encoder_arch['n_units'], decoder_arch['n_units'])
-        self.latent = FullyConnectedLatentVariable(self.n_latent, const_prior_var,
-                                                   var_input_sizes, norm_flow)
-
-        self.det_enc = FullyConnected(encoder_arch['n_units'], self.n_det) if self.n_det[0] > 0 else None
-        self.det_dec = FullyConnected(decoder_arch['n_units'], self.n_det) if self.n_det[1] > 0 else None
+    def _get_encoding_form(self, input):
+        """
+        Gets the appropriate input form for the inference procedure.
+        """
+        if self.inference_procedure == 'direct':
+            return input
+        else:
+            raise NotImplementedError
 
     def infer(self, input):
-        encoded = self.encoder(self._get_encoding_form(input, 'in'))
-        output = self._get_encoding_form(self.latent.infer(encoded).mean(dim=1), 'out')
-        if self.det_enc:
-            det = self.det_enc(encoded)
-            output = torch.cat((det, output), 1)
-        return output
+        """
+        Method to perform inference.
 
-    def generate(self, input, n_samples, gen):
-        b, s, n = input.data.shape
-        decoded = self.decoder(input.view(-1, n)).view(b, s, -1)
-        sample = self.latent.predict(decoded, n_samples, gen)
-        if self.det_dec:
-            n = decoded.data.shape[2]
-            det = self.det_dec(decoded.view(-1, n)).view(b, n_samples, -1)
-            sample = torch.cat((sample, det), dim=2)
-        return sample
+        Args:
+            input (Tensor): input to the inference procedure
+        """
+        input = self._get_encoding_form(input)
+        input = self.inference_model(input)
+        self.latent.infer(input)
 
-    def _get_encoding_form(self, input, in_out):
-        pass
+    def generate(self, input, gen, n_samples):
+        """
+        Method to generate, i.e. run the model forward.
+
+        Args:
+            input (Tensor): input to the generative procedure
+            gen (boolean): whether to sample from approximate poserior (False) or
+                            the prior (True)
+            n_samples (int): number of samples to draw
+        """
+        if input is not None:
+            b, s, n = input.data.shape
+            input = self.generative_model(input.view(b * s, n)).view(b, s, -1)
+        return self.latent.generate(input, gen=gen, n_samples=n_samples)
+
+    def step(self):
+        """
+        Method to step the latent level forward in the sequence.
+        """
+        self.latent.step()
+
+    def re_init(self):
+        """
+        Method to reinitialize the latent level (latent variable and any state
+        variables in the generative / inference procedures).
+        """
+        self.latent.re_init()
+        self.inference_model.re_init()
+        self.generative_model.re_init()
+
+    def inference_parameters(self):
+        """
+        Method to obtain inference parameters.
+        """
+        params = nn.ParameterList()
+        params.extend(list(self.inference_model.parameters()))
+        params.extend(list(self.latent.inference_parameters()))
+        return params
+
+    def generative_parameters(self):
+        """
+        Method to obtain generative parameters.
+        """
+        params = nn.ParameterList()
+        params.extend(list(self.generative_model.parameters()))
+        params.extend(list(self.latent.generative_parameters()))
+        return params

@@ -85,10 +85,9 @@ class RandomSequenceCrop(object):
         if type(input) == list:
             input_seq_len = len(input)
         elif 'shape' in dir(input):
-            assert len(input.shape) > 1, 'Sequence does not have enough dimensions.'
             input_seq_len = input.shape[0]
         max_start_ind = input_seq_len - self.seq_len + 1
-        assert max_start_ind > 0, 'Seqence length longer than input sequence.'
+        assert max_start_ind > 0, 'Sequence length longer than input sequence.'
         start_ind = np.random.choice(range(max_start_ind))
         return input[start_ind:start_ind+self.seq_len]
 
@@ -104,7 +103,7 @@ class ConcatSequence(object):
         return torch.stack(input)
 
 
-class ToTensor(object):
+class ImageToTensor(object):
     """
     Converts a PIL image or sequence of PIL images into (a) PyTorch tensor(s).
     """
@@ -117,9 +116,24 @@ class ToTensor(object):
         return self.to_tensor(input)
 
 
-class Normalize(object):
+class ToTensor(object):
     """
-    Normalizes a PyTorch tensor or a list of PyTorch tensors.
+    Converts a numpy array into (a) PyTorch tensor(s).
+    """
+    def __init__(self):
+        pass
+
+    def __call__(self, input):
+        return torch.from_numpy(input)
+
+
+class NormalizeImage(object):
+    """
+    Normalizes a PyTorch image tensor or a list of PyTorch image tensors.
+
+    Args:
+        mean (int, tensor): mean to subtract
+        std (int, tensor): standard deviation by which to divide
     """
     def __init__(self, mean, std):
         self.normalize = torch_transforms.Normalize(mean, std)
@@ -128,3 +142,44 @@ class Normalize(object):
         if type(input) == list:
             return [self.normalize(i) for i in input]
         return self.normalize(input)
+
+
+class Normalize(object):
+    """
+    Normalizes a PyTorch tensor or a list of PyTorch tensors.
+
+    Args:
+        mean (int, tensor): mean to subtract
+        std (int, tensor): standard deviation by which to divide
+    """
+    def __init__(self, mean, std):
+        self.mean = mean
+        self.std = std
+
+    def normalize(self, input):
+        return (input - self.mean) / self.std
+
+    def __call__(self, input):
+        if type(input) == list:
+            return [self.normalize(i) for i in input]
+        return self.normalize(input)
+
+
+class BinSequence(object):
+    """
+    Reshapes a sequence into a series of bins of the same width. Used in modeling
+    audio data.
+
+    Args:
+        window (int): the window over which consecutive samples are aggregated
+    """
+    def __init__(self, window):
+        self.window = window
+
+    def __call__(self, input):
+        if type(input) == list:
+            input = np.array(input)
+        if type(input) == np.ndarray:
+            return input.reshape(-1, self.window)
+        else:
+            return input.view(-1, self.window)

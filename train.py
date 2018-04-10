@@ -7,7 +7,12 @@ from lib.models import load_model
 from util.optimizers import load_opt_sched
 from util.train_val import train, validate
 
-torch.cuda.set_device(run_config['cuda_device'])
+# hack to prevent the data loader from going on GPU 0
+import os
+os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
+os.environ["CUDA_VISIBLE_DEVICES"]=str(run_config['cuda_device'])
+# torch.cuda.set_device(run_config['cuda_device'])
+torch.cuda.set_device(0)
 
 # initialize logging and plotting
 logger = Logger(run_config)
@@ -38,7 +43,8 @@ while True:
         # out = validate(val_data, model)
         # logger.log(out, 'Val'); plotter.plot(out, 'Val')
         pass
-    logger.save_checkpoint(model, optimizers)
+    if logger.save_epoch():
+        logger.save_checkpoint(model, optimizers)
     logger.step(); plotter.step()
     schedulers[0].step(); schedulers[1].step()
     plotter.save()

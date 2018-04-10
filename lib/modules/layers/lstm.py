@@ -52,9 +52,13 @@ class LSTMLayer(Layer):
         """
         pass
 
-    def re_init(self):
+    def re_init(self, input=None):
         """
         Method to reinitialize the hidden state and cell state within the layer.
         """
-        self.hidden_state = None
-        self.cell_state = None
+        if input is not None:
+            self.hidden_state = self.initial_hidden.repeat(input.data.shape[0], 1)
+            self.cell_state = self.initial_cell.repeat(input.data.shape[0], 1)
+        else:
+            self.hidden_state = None
+            self.cell_state = None

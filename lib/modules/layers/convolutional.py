@@ -4,7 +4,7 @@ from torch.nn import init
 from layer import Layer
 
 
-class ConvLayer(Layer):
+class ConvolutionalLayer(Layer):
     """
     Convolutional neural network layer.
 

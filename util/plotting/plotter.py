@@ -16,7 +16,7 @@ class Plotter(object):
         self.vis = visdom.Visdom(port=8097, env=log_dir)
         # TODO: check whether to init new plots or load handles to old plots
         self.handle_dict = self._init_plots()
-        self.epoch = 0
+        self.epoch = 1
 
     def _init_plots(self):
         """
@@ -43,7 +43,7 @@ class Plotter(object):
                                        xformat='log', yformat='log')
         handle_dict['kl'] = plot_line(self.vis, nans, np.ones((1, 2)), legend=['Train', 'Val'],
                                       title='Total KL Divergence', xlabel='Epochs',
-                                      ylabel='KL Divergence', xformat='log', yformat='log')
+                                      ylabel='KL Divergence (Nats)', xformat='log', yformat='log')
         ########################################################################
         # Per step free energy, conditional log likelihood, KL divergence
         ########################################################################
@@ -73,7 +73,7 @@ class Plotter(object):
                                            legend=step_legend,
                                            title='Per Step KL Divergence',
                                            xlabel='Epochs',
-                                           ylabel='KL Divergence',
+                                           ylabel='KL Divergence (Nats)',
                                            xformat='log', yformat='log')
         ########################################################################
         # Inference gradient magnitudes
@@ -118,7 +118,7 @@ class Plotter(object):
         handle_dict['out_log_var'] = plot_line(self.vis, nans, np.ones((1, 2)),
                                                legend=['Train', 'Val'], title='Output Log Variance',
                                                xlabel='Epochs', ylabel='Log Variance',
-                                               xformat='log', yformat='log')
+                                               xformat='log', yformat='linear')
         ########################################################################
         return handle_dict
 

@@ -28,25 +28,44 @@ def load_dataset(data_config, run_config):
     ############################################################################
     if dataset_name == 'blizzard':
         if not os.path.exists(os.path.join(data_path, 'blizzard')):
-            raise ValueError('BLIZZARD dataset does not exist. Please manually \
+            raise ValueError('Blizzard dataset does not exist. Please manually \
                              download the dataset by obtaining a license from \
                              http://www.cstr.ed.ac.uk/projects/blizzard/2013/lessac_blizzard2013/, \
-                             then copy the downloaded files into a directory \
-                             called blizzard in your data directory.')
+                             then copy the file Lessac_Blizzard2013_CatherineByers_train.tar.bz2 \
+                             into a directory named blizzard in your data directory.')
 
-        files = ['BlackBeauty.zip', 'mansfield1.zip', 'mansfield2.zip', 'mansfield3.zip',
-                 'pride_and_prejudice1.zip', 'pride_and_prejudice2.zip',
-                 'pride_and_prejudice3.zip', 'Lessac_Blizzard2013_CatherineByers_train.tar.bz2']
+        # untar the data file
+        if not os.path.exists(os.path.join(data_path, 'blizzard', 'data')):
+            assert os.path.exists(os.path.join(data_path, 'blizzard',
+                                  'Lessac_Blizzard2013_CatherineByers_train.tar.bz2'))
+            print('Untarring Blizzard dataset...')
+            tar = tarfile.open(os.path.join(data_path, 'blizzard',
+                                  'Lessac_Blizzard2013_CatherineByers_train.tar.bz2'), "r:bz2")
+            os.makedirs(os.path.join(data_path, 'blizzard', 'data'))
+            tar.extractall(os.path.join(data_path, 'blizzard', 'data'))
+            tar.close()
+            os.remove(os.path.join(data_path, 'blizzard',
+                        'Lessac_Blizzard2013_CatherineByers_train.tar.bz2'))
+            print('Done.')
 
-        for f in files:
-            pass
+        # convert the data into train/val/test
+        if not os.path.exists(os.path.join(data_path, 'blizzard', 'train')):
+            print('Converting Blizzard dataset...')
+            from misc_data_util.convert_blizzard import convert
+            convert(os.path.join(data_path, 'blizzard'))
+            print('Done.')
 
+        from datasets import Blizzard
+        mean, std = cPickle.load(open(os.path.join(data_path, 'blizzard', 'statistics.p'), 'r'))
+        total_len = data_config['window'] * data_config['sequence_length']
+        data_trans = trans.Compose([trans.RandomSequenceCrop(total_len),
+                                    trans.Normalize(mean, std),
+                                    trans.BinSequence(data_config['window']),
+                                    trans.ToTensor()])
 
-        from datasets.blizzard import BLIZZARD
-
-        train = BLIZZARD(os.path.join(data_path, 'blizzard', 'train'))
-        val = BLIZZARD(os.path.join(data_path, 'blizzard', 'val'))
-        test = BLIZZARD(os.path.join(data_path, 'blizzard', 'test'))
+        train = Blizzard(os.path.join(data_path, 'blizzard', 'train'), data_trans)
+        val = Blizzard(os.path.join(data_path, 'blizzard', 'val'), data_trans)
+        test = Blizzard(os.path.join(data_path, 'blizzard', 'test'), data_trans)
 
     elif dataset_name == 'timit':
         if not os.path.exists(os.path.join(data_path, 'timit')):
@@ -70,11 +89,17 @@ def load_dataset(data_config, run_config):
             convert(os.path.join(data_path, 'timit'))
             print('Done.')
 
-        from datasets.timit import TIMIT
+        from datasets import TIMIT
+        mean, std = cPickle.load(open(os.path.join(data_path, 'timit', 'statistics.p'), 'r'))
+        total_len = data_config['window'] * data_config['sequence_length']
+        data_trans = trans.Compose([trans.RandomSequenceCrop(total_len),
+                                    trans.Normalize(mean, std),
+                                    trans.BinSequence(data_config['window']),
+                                    trans.ToTensor()])
 
-        train = TIMIT(os.path.join(data_path, 'timit', 'train', 'train.npz'))
-        val = TIMIT(os.path.join(data_path, 'timit', 'val', 'val.npz'))
-        test = TIMIT(os.path.join(data_path, 'timit', 'test', 'test.npz'))
+        train = TIMIT(os.path.join(data_path, 'timit', 'train', 'train.p'), data_trans)
+        val = TIMIT(os.path.join(data_path, 'timit', 'val', 'val.p'), data_trans)
+        test = TIMIT(os.path.join(data_path, 'timit', 'test', 'test.p'), data_trans)
 
     ############################################################################
     ## Handwriting datasets
@@ -174,15 +199,15 @@ def load_dataset(data_config, run_config):
                 shutil.rmtree(os.path.join(data_path, 'kth_actions', action))
             print('Done.')
 
-        from datasets.kth_actions import KTHActions
+        from datasets import KTHActions
         train_trans = trans.Compose([trans.RandomHorizontalFlip(),
                                      trans.Resize(data_config['img_size']),
                                      trans.RandomSequenceCrop(data_config['sequence_length']),
-                                     trans.ToTensor(),
+                                     trans.ImageToTensor(),
                                      trans.ConcatSequence()])
         val_test_trans = trans.Compose([trans.Resize(data_config['img_size']),
                                     trans.RandomSequenceCrop(data_config['sequence_length']),
-                                    trans.ToTensor(),
+                                    trans.ImageToTensor(),
                                     trans.ConcatSequence()])
         train = KTHActions(os.path.join(data_path, 'kth_actions', 'train'), train_trans)
         val   = KTHActions(os.path.join(data_path, 'kth_actions', 'val'), val_test_trans)
@@ -212,15 +237,15 @@ def load_dataset(data_config, run_config):
             shutil.rmtree(os.path.join(data_path, 'bair_robot_pushing', 'softmotion30_44k'))
             print('Done.')
 
-        from datasets.bair_robot_pushing import BAIRRobotPushing
+        from datasets import BAIRRobotPushing
         train_trans = trans.Compose([trans.RandomHorizontalFlip(),
                                      trans.Resize(data_config['img_size']),
                                      trans.RandomSequenceCrop(data_config['sequence_length']+1),
-                                     trans.ToTensor(),
+                                     trans.ImageToTensor(),
                                      trans.ConcatSequence()])
         test_trans = trans.Compose([trans.Resize(data_config['img_size']),
                                     trans.RandomSequenceCrop(data_config['sequence_length']+1),
-                                    trans.ToTensor(),
+                                    trans.ImageToTensor(),
                                     trans.ConcatSequence()])
         train = BAIRRobotPushing(os.path.join(data_path, 'bair_robot_pushing', 'train'), train_trans)
         test  = BAIRRobotPushing(os.path.join(data_path, 'bair_robot_pushing', 'test'), test_trans)

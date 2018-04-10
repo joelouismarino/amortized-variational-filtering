@@ -70,6 +70,7 @@ class SVG(LatentVariableModel):
                                                         'non_linearity': 'tanh'})
         self.output_dist = Normal()
         self.output_dist.log_var = nn.Parameter(torch.zeros(32, 1, 3, 64, 64))
+        self.output_interval = 1./256
 
     def _get_encoding_form(self, observation):
         """
@@ -169,4 +170,5 @@ class SVG(LatentVariableModel):
         params.extend(list(self.decoder.parameters()))
         params.extend(list(self.latent_levels[0].generative_parameters()))
         params.extend(list(self.decoder_lstm.parameters()))
+        params.append(self.output_dist.log_var)
         return params

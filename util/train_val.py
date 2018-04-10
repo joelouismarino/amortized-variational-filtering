@@ -30,67 +30,71 @@ def train(data, model, optimizers):
 
     # loop over training examples
     for batch_ind, batch in enumerate(data):
-        print('Iteration: ' + str(batch_ind) + ' of ' + str(len(data)))
-        # re-initialize the model from the data
-        batch = Variable(batch.cuda())
-        model.re_init(batch[0])
-        inf_opt.zero_grad(); gen_opt.zero_grad()
+        if batch.shape[1] == run_config['batch_size']:  ## hack for now
+            print('Iteration: ' + str(batch_ind) + ' of ' + str(len(data)))
+            # re-initialize the model from the data
+            batch = Variable(batch.cuda())
+            model.re_init(batch[0])
+            inf_opt.zero_grad(); gen_opt.zero_grad()
 
-        batch_size = batch.data.shape[1]
-        step_free_energy   = np.zeros((batch_size, n_steps))
-        step_cond_log_like = np.zeros((batch_size, n_steps))
-        step_kl_div        = np.zeros((batch_size, n_steps))
+            batch_size = batch.data.shape[1]
+            step_free_energy   = np.zeros((batch_size, n_steps))
+            step_cond_log_like = np.zeros((batch_size, n_steps))
+            step_kl_div        = np.zeros((batch_size, n_steps))
 
-        total_reconstruction = np.zeros(batch.data.shape)
+            total_reconstruction = np.zeros(batch.data.shape)
 
-        free_energy_loss = 0.
+            free_energy_loss = 0.
 
-        # loop over sequence steps
-        for step_ind, step_batch in enumerate(batch[1:]):
+            # loop over sequence steps
+            for step_ind, step_batch in enumerate(batch[1:]):
 
-            # form a prediction, get gradients/errors
-            # model.generate(gen=True)
-            # model.free_energy(step_batch).backward(retain_graph=True)
-
-            # loop over inference iterations
-            for inf_it in range(n_inf_iter):
-                model.infer(step_batch)
-                model.generate()
-                free_energy, cond_log_like, kl = model.losses(step_batch, averaged=False)
-
+                # form a prediction, get gradients/errors
+                # model.generate(gen=True)
                 # model.free_energy(step_batch).backward(retain_graph=True)
-                ### inf_opt.step()
-                # inf_opt.zero_grad()
-            ### gen_opt.step()
-            # gen_opt.zero_grad()
 
-            free_energy_loss += free_energy.mean(dim=0)
+                # loop over inference iterations
+                for inf_it in range(n_inf_iter):
+                    model.infer(step_batch)
+                    model.generate()
+                    # free_energy, cond_log_like, kl = model.losses(step_batch, averaged=False)
+                    free_energy, cond_log_like, kl = model.losses(step_batch, averaged=False)
 
-            step_free_energy[:, step_ind]   = free_energy.data.cpu().numpy()
-            step_cond_log_like[:, step_ind] = cond_log_like.data.cpu().numpy()
-            step_kl_div[:, step_ind]        = kl[0].data.cpu().numpy()
+                    print(free_energy.mean())
+                    if np.isnan(free_energy.data.cpu().numpy()).any():
+                        print('Nan encountered during training...')
+                        import ipdb; ipdb.set_trace()
 
-            total_reconstruction[step_ind] = model.output_dist.mean.data.cpu().numpy()[:, 0]
+                    # model.free_energy(step_batch).backward(retain_graph=True)
+                    ### inf_opt.step()
+                    # inf_opt.zero_grad()
+                ### gen_opt.step()
+                # gen_opt.zero_grad()
 
-            # form the prior on the next step
-            model.step()
+                free_energy_loss += free_energy.mean(dim=0)
 
-        if np.isnan(free_energy_loss.data.cpu().numpy()):
-            print('Nan encountered during training...')
-            import ipdb; ipdb.set_trace()
+                step_free_energy[:, step_ind]   = free_energy.data.cpu().numpy()
+                step_cond_log_like[:, step_ind] = cond_log_like.data.cpu().numpy()
+                step_kl_div[:, step_ind]        = kl[0].data.cpu().numpy()
 
-        free_energy_loss.backward()
+                total_reconstruction[step_ind] = model.output_dist.mean.data.cpu().numpy()[:, 0]
 
-        inf_opt.step()
-        gen_opt.step()
+                # form the prior on the next step
+                model.step()
 
-        out_dict['free_energy'][batch_ind]   = step_free_energy.mean(axis=0)
-        out_dict['cond_log_like'][batch_ind] = step_cond_log_like.mean(axis=0)
-        out_dict['kl_div'][batch_ind]        = step_kl_div.mean(axis=0)
-        out_dict['out_log_var'][batch_ind]   = model.output_dist.log_var.data.cpu().numpy().mean()
+            if np.isnan(free_energy_loss.data.cpu().numpy()):
+                print('Nan encountered during training...')
+                import ipdb; ipdb.set_trace()
 
-        if batch_ind == 100:
-            break
+            free_energy_loss.backward()
+
+            inf_opt.step()
+            gen_opt.step()
+
+            out_dict['free_energy'][batch_ind]   = step_free_energy.mean(axis=0)
+            out_dict['cond_log_like'][batch_ind] = step_cond_log_like.mean(axis=0)
+            out_dict['kl_div'][batch_ind]        = step_kl_div.mean(axis=0)
+            out_dict['out_log_var'][batch_ind]   = model.output_dist.log_var.data.cpu().numpy().mean()
 
     out_dict['lr'] = (inf_opt.param_groups[0]['lr'], gen_opt.param_groups[0]['lr'])
 

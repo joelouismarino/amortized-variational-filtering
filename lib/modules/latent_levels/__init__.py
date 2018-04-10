@@ -1,3 +1,3 @@
-from convolutional import ConvLatentLevel
+from convolutional import ConvolutionalLatentLevel
 from fully_connected import FullyConnectedLatentLevel
 from lstm import LSTMLatentLevel

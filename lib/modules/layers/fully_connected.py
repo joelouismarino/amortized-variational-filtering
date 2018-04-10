@@ -81,7 +81,7 @@ class FullyConnectedLayer(Layer):
                     init.normal(self.bn.weight, 1, 0.02)
                     init.constant(self.bn.bias, 0.)
         else:
-            init.normal(self.linear.weight)
+            init.xavier_normal(self.linear.weight, gain=init_gain)
 
         init.constant(self.linear.bias, 0.)
 

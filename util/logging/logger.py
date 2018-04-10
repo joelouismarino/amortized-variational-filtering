@@ -13,6 +13,7 @@ class Logger(object):
         """
         print('Initializing logs...')
         log_root = run_config['log_root_path']
+        self._save_iter = run_config['save_iter']
         if run_config['resume_path']:
             # resume an old experiment
             self.log_dir = run_config['resume_path']
@@ -29,8 +30,15 @@ class Logger(object):
             os.system("rsync -au --include '*/' --include '*.py' --exclude '*' . " + self.log_path + "source")
             os.makedirs(os.path.join(self.log_path, 'metrics'))
             os.makedirs(os.path.join(self.log_path, 'checkpoints'))
-            self.epoch = 0
+            self.epoch = 1
             print(' Starting experiment ' + self.log_dir)
+
+    def save_epoch(self):
+        """
+        Specifies whether or not to save the model at the current epoch.
+        """
+        # TODO: use the validation loss to override this?
+        return (self.epoch % self._save_iter) == 0
 
     def save_checkpoint(self, model, optimizers):
         """
@@ -40,8 +48,7 @@ class Logger(object):
             model (LatentVariableModel): model to save
             optimizers (tuple): inference and generative optimizers
         """
-        epoch = 0
-        ckpt_path = os.path.join(self.log_path, 'checkpoints', str(epoch))
+        ckpt_path = os.path.join(self.log_path, 'checkpoints', str(self.epoch))
         if not os.path.exists(ckpt_path):
             os.makedirs(ckpt_path)
         # TODO: put everything on CPU first

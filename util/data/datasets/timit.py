@@ -1,32 +1,24 @@
 import numpy as np
+import cPickle
 from torch.utils.data import Dataset
 
 
 class TIMIT(Dataset):
+    """
+    A dataset class for the TIMIT dataset.
 
-    def __init__(self, path):
-        data = np.load(path)
-        self.x = data['x']
-        self.mask = None
-        if 'mask' in data:
-            self.mask = data['mask']
+    Args:
+        path (str): path to the pickle file containing the data list
+    """
+    def __init__(self, path, transforms=None):
+        self.data_list = cPickle.load(open(path, 'r')) # list of audio waveforms
+        self.transforms = transforms
 
-    def __get_item__(self, ind):
-        return self.x[ind]
+    def __getitem__(self, ind):
+        item  = self.data_list[ind]
+        if self.transforms is not None:
+            item = self.transforms(item)
+        return item
 
     def __len__(self):
-        return self.x.shape[0]
-
-# TODO: rewrite so that the dataset loads individual examples and cuts them to
-#       a pre-specified length and output dimension, and performs normalization
-#
-# class TIMIT(Dataset):
-#
-#     def __init__(self, path, output_dim=200, seq_len=40):
-#         pass
-#
-#     def __get_item__(self, ind):
-#         pass
-#
-#     def __len__(self):
-#         pass
+        return len(self.data_list)

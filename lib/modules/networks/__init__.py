@@ -1,3 +1,3 @@
-from convolutional import ConvNetwork
+from convolutional import ConvolutionalNetwork
 from fully_connected import FullyConnectedNetwork
 from lstm import LSTMNetwork

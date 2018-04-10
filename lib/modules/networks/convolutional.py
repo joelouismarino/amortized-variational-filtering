@@ -1,9 +1,10 @@
 import torch
 import torch.nn as nn
+from lib.modules.layers import ConvolutionalLayer
 from network import Network
 
 
-class ConvNetwork(Network):
+class ConvolutionalNetwork(Network):
 
     """Multi-layer convolutional network."""
 
