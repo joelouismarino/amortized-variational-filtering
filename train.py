@@ -4,7 +4,7 @@ from util.logging import Logger
 from util.plotting import Plotter
 from util.data.load_data import load_data
 from lib.models import load_model
-from util.optimizers import load_opt_sched
+from util.optimization import load_opt_sched
 from util.train_val import train, validate
 
 # hack to prevent the data loader from going on GPU 0

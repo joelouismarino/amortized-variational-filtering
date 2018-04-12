@@ -67,6 +67,9 @@ class FullyConnectedLatentVariable(LatentVariable):
             approx_post_log_var_gate = self.approx_post_log_var_gate(input)
             self.approx_post.log_var = approx_post_log_var_gate * self.approx_post.log_var.detach() \
                                        + (1 - approx_post_log_var_gate) * approx_post_log_var
+        # retain the gradients (for inference)
+        self.approx_post.mean.retain_grad()
+        self.approx_post.log_var.retain_grad()
         return self.approx_post.sample(resample=True)
 
     def generate(self, input, gen, n_samples):
@@ -108,6 +111,26 @@ class FullyConnectedLatentVariable(LatentVariable):
         Method to step the latent variable forward in the sequence.
         """
         pass
+
+    def error(self, averaged=True):
+        """
+        Calculates Gaussian error for encoding.
+
+        Args:
+            averaged (boolean): whether or not to average over samples
+        """
+        sample = self.approx_post.sample()
+        n_samples = sample.data.shape[1]
+        prior_mean = self.prior.mean.detach()
+        if len(prior_mean.data.shape) == 2:
+            prior_mean = prior_mean.unsqueeze(1).repeat(1, n_samples, 1)
+        prior_log_var = self.prior.log_var.detach()
+        if len(prior_log_var.data.shape) == 2:
+            prior_log_var = prior_log_var.unsqueeze(1).repeat(1, n_samples, 1)
+        n_error = (sample - prior_mean) / torch.exp(prior_log_var + 1e-7)
+        if averaged:
+            n_error = n_error.mean(dim=1)
+        return n_error
 
     def inference_parameters(self):
         """

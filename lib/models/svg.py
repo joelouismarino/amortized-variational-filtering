@@ -81,6 +81,10 @@ class SVG(LatentVariableModel):
         """
         if self.inference_procedure == 'direct':
             return observation - 0.5
+        if self.inference_procedure == 'gradient':
+            raise NotImplementedError
+        elif self.inference_procedure == 'error':
+            raise NotImplementedError
         else:
             raise NotImplementedError
 

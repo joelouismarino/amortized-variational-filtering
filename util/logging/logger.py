@@ -1,7 +1,7 @@
 import os
 import torch
 from time import strftime
-from util.optimizers import load_sched
+from util.optimization import load_sched
 from log_util import set_gpu_recursive, get_last_epoch, update_metric
 
 
@@ -53,7 +53,8 @@ class Logger(object):
             os.makedirs(ckpt_path)
         # TODO: put everything on CPU first
         torch.save(model.state_dict(), os.path.join(ckpt_path, 'model.ckpt'))
-        torch.save(tuple([opt.state_dict() for opt in optimizers]), os.path.join(ckpt_path, 'opt.ckpt'))
+        torch.save(tuple([optimizer.opt.state_dict() for optimizer in optimizers]),
+                    os.path.join(ckpt_path, 'opt.ckpt'))
 
     def load_checkpoint(self, model, optimizers):
         """
@@ -70,8 +71,8 @@ class Logger(object):
 
         optimizer_state_dict = torch.load(os.path.join(self.log_path, 'checkpoints', str(self.epoch), 'opt.ckpt'))
         for opt_ind in range(len(optimizers)):
-            optimizers[opt_ind].load_state_dict(optimizer_state_dict[opt_ind])
-            optimizers[opt_ind].state = set_gpu_recursive(optimizers[opt_ind].state, torch.cuda.current_device())
+            optimizers[opt_ind].opt.load_state_dict(optimizer_state_dict[opt_ind])
+            optimizers[opt_ind].opt.state = set_gpu_recursive(optimizers[opt_ind].state, torch.cuda.current_device())
 
         schedulers = load_sched(optimizers, self.epoch)
 
