@@ -22,12 +22,14 @@ class Optimizer(object):
         self.opt = optimizer(self.parameters, lr=lr)
         self.stored_grads = None
         self.zero_stored_grad()
+        self._n_iter = 0
 
     def collect(self):
         """
         Collects the current gradients, and adds them to the stored gradients.
         """
         for ind, param in enumerate(self.parameters):
+            self._n_iter += 1
             if self.stored_grads[ind] is None:
                 self.stored_grads[ind] = param.grad
             else:
@@ -38,8 +40,9 @@ class Optimizer(object):
         Applies the stored gradients to update the parameters.
         """
         for ind, param in enumerate(self.parameters):
-            param.grad = self.stored_grads[ind]
+            param.grad = self.stored_grads[ind] / self._n_iter
         self.opt.step()
+        self._n_iter = 0
 
     def zero_stored_grad(self):
         """

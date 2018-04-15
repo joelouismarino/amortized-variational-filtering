@@ -29,6 +29,7 @@ class VRNN(LatentVariableModel):
         self.inference_procedure = model_config['inference_procedure'].lower()
         if not self.modified:
             assert self.inference_procedure == 'direct', 'The original model only supports direct inference.'
+        self._detach_h = False
         latent_config = {}
         level_config = {}
          # hard coded because we handle inference here in the model
@@ -86,9 +87,9 @@ class VRNN(LatentVariableModel):
             if self.inference_procedure == 'direct':
                 input_dim = x_dim
             elif self.inference_procedure == 'gradient':
-                input_dim = 2 * z_dim
+                input_dim = 4 * z_dim
             elif self.inference_procedure == 'error':
-                input_dim = x_dim + z_dim
+                input_dim = x_dim + 3 * z_dim
             else:
                 raise NotImplementedError
             inf_config = {'n_in': input_dim, 'n_units': x_units,
@@ -140,17 +141,19 @@ class VRNN(LatentVariableModel):
                 grads[ind] = (grad - mean) / (std + 1e-5)
             # concatenate
             grads = torch.cat(grads, dim=1)
-            return grads
+            params = torch.cat(self.latent_levels[0].latent.approx_posterior_parameters(), dim=1)
+            return torch.cat([grads, params], dim=1)
         elif self.inference_procedure == 'error':
-            errors = [self._output_error(), self.latent_levels[0].latent.error()]
+            errors = [self._output_error(observation), self.latent_levels[0].latent.error()]
             # normalize
-            for error in enumerate(errors):
+            for ind, error in enumerate(errors):
                 mean = error.mean(dim=0, keepdim=True)
                 std = error.std(dim=0, keepdim=True)
                 errors[ind] = (error - mean) / (std + 1e-5)
             # concatenate
             errors = torch.cat(errors, dim=1)
-            return errors
+            params = torch.cat(self.latent_levels[0].latent.approx_posterior_parameters(), dim=1)
+            return torch.cat([errors, params], dim=1)
         else:
             raise NotImplementedError
 
@@ -184,7 +187,9 @@ class VRNN(LatentVariableModel):
             inf_input = self.inf_model(self._get_encoding_form(observation))
         else:
             inf_input = self._x_enc
-        enc = torch.cat([inf_input, self._prev_h], dim=1)
+        prev_h = self._prev_h
+        prev_h = prev_h.detach() if self._detach_h else prev_h
+        enc = torch.cat([inf_input, prev_h], dim=1)
         self.latent_levels[0].infer(enc)
 
     def generate(self, gen=False, n_samples=1):
@@ -196,22 +201,28 @@ class VRNN(LatentVariableModel):
             gen (boolean): whether to sample from prior or approximate posterior
             n_samples (int): number of samples to draw and evaluate
         """
-        # TODO: handle sampling dimension reshape
-        z = self.latent_levels[0].generate(self._prev_h.unsqueeze(1), gen=gen, n_samples=n_samples)
+        # TODO: handle sampling dimension
+        # possibly detach the hidden state, preventing backprop
+        prev_h = self._prev_h.unsqueeze(1)
+        prev_h = prev_h.detach() if self._detach_h else prev_h
+        z = self.latent_levels[0].generate(prev_h, gen=gen, n_samples=n_samples)
         self._z_enc = self.z_model(z)
-        dec = torch.cat([self._z_enc, self._prev_h.unsqueeze(1)], dim=2)
+        dec = torch.cat([self._z_enc, prev_h], dim=2)
         output = self.decoder_model(dec)
         self.output_dist.mean = self.output_mean(output)
         self.output_dist.log_var = self.output_log_var(output)
         return self.output_dist.sample()
 
-    def step(self):
+    def step(self, n_samples=1):
         """
         Method for stepping the generative model forward one step in the sequence.
         """
-        # TODO: handle sampling dimension reshape better
-        self._prev_h = self._h
-        self._h = self.lstm(torch.cat([self._x_enc, self._z_enc[:, 0]], dim=1))
+        # TODO: handle sampling dimension
+        self._prev_h = self.lstm(torch.cat([self._x_enc, self._z_enc[:, 0]], dim=1))
+        self.lstm.step()
+        # get the prior, use it to initialize the approximate posterior
+        self.latent_levels[0].generate(self._prev_h.unsqueeze(1), gen=True, n_samples=n_samples)
+        self.latent_levels[0].latent.re_init_approx_posterior()
 
     def re_init(self, input):
         """
@@ -220,7 +231,8 @@ class VRNN(LatentVariableModel):
         """
         self.lstm.re_init(input)
         self._prev_h = self.lstm.layers[0].hidden_state
-        self._h = None
+        prev_h = self._prev_h.unsqueeze(1)
+        self.latent_levels[0].generate(prev_h, gen=True, n_samples=1)
         self.latent_levels[0].re_init()
 
     def inference_parameters(self):
@@ -228,7 +240,6 @@ class VRNN(LatentVariableModel):
         Method for obtaining the inference parameters.
         """
         params = nn.ParameterList()
-        params.extend(list(self.x_model.parameters()))
         if self.modified:
             params.extend(list(self.inf_model.parameters()))
         params.extend(list(self.latent_levels[0].inference_parameters()))
@@ -241,8 +252,24 @@ class VRNN(LatentVariableModel):
         params = nn.ParameterList()
         params.extend(list(self.lstm.parameters()))
         params.extend(list(self.latent_levels[0].generative_parameters()))
+        params.extend(list(self.x_model.parameters()))
         params.extend(list(self.z_model.parameters()))
         params.extend(list(self.decoder_model.parameters()))
         params.extend(list(self.output_mean.parameters()))
         params.extend(list(self.output_log_var.parameters()))
         return params
+
+    def inference_mode(self):
+        """
+        Method to set the model's current mode to inference.
+        """
+        self.latent_levels[0].latent.detach = False
+        self._detach_h = True if not self.modified else False
+
+    def generative_mode(self):
+        """
+        Method to set the model's current mode to generation.
+        """
+        inf =  self.inference_procedure
+        self.latent_levels[0].latent.detach = False if inf == 'direct' else True
+        self._detach_h = False if inf == 'direct' else True

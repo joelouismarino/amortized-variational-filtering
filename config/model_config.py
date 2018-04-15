@@ -1,7 +1,7 @@
 model_config = {
     'architecture': 'vrnn',
-    'inference_procedure': 'direct',
-    'modified': False
+    'inference_procedure': 'error',
+    'modified': True
 }
 
 ## SVG

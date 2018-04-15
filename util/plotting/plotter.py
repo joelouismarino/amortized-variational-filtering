@@ -26,6 +26,7 @@ class Plotter(object):
         handle_dict = {}
         nans = np.zeros((1, 2), dtype=float)
         nans.fill(np.nan)
+        n_steps = data_config['sequence_length'] - 1
         ########################################################################
         # Configuration dictionaries
         ########################################################################
@@ -49,27 +50,27 @@ class Plotter(object):
         ########################################################################
         step_legend = []
         for split in ['Train', 'Val']:
-            for step_num in range(1, data_config['sequence_length']+1):
+            for step_num in range(1, n_steps + 1):
                 step_legend.append(split + ', Step ' + str(step_num))
         handle_dict['fe_step'] = plot_line(self.vis,
-                                           nans.repeat(data_config['sequence_length'], 1),
-                                           np.ones((1, 2 * data_config['sequence_length'])),
+                                           nans.repeat(n_steps, 1),
+                                           np.ones((1, 2 * n_steps)),
                                            legend=step_legend,
                                            title='Per Step Free Energy',
                                            xlabel='Epochs',
                                            ylabel='Free Energy (Nats)',
                                            xformat='log', yformat='log')
         handle_dict['cll_step'] = plot_line(self.vis,
-                                            nans.repeat(data_config['sequence_length'], 1),
-                                            np.ones((1, 2 * data_config['sequence_length'])),
+                                            nans.repeat(n_steps, 1),
+                                            np.ones((1, 2 * n_steps)),
                                             legend=step_legend,
                                             title='Per Step Conditional Log Likelihood',
                                             xlabel='Epochs',
                                             ylabel='Conditional Log Likelihood (Nats)',
                                             xformat='log', yformat='log')
         handle_dict['kl_step'] = plot_line(self.vis,
-                                           nans.repeat(data_config['sequence_length'], 1),
-                                           np.ones((1, 2 * data_config['sequence_length'])),
+                                           nans.repeat(n_steps, 1),
+                                           np.ones((1, 2 * n_steps)),
                                            legend=step_legend,
                                            title='Per Step KL Divergence',
                                            xlabel='Epochs',
@@ -80,24 +81,24 @@ class Plotter(object):
         ########################################################################
         it_legend = []
         for split in ['Train', 'Val']:
-            for it_num in range(1, run_config['inference_iterations']+1):
+            for it_num in range(run_config['inference_iterations']+1):
                 it_legend.append(split + ', Iteration ' + str(it_num))
         handle_dict['mean_grad'] = plot_line(self.vis,
-                                             nans.repeat(run_config['inference_iterations'], 1),
-                                             np.ones((1, 2 * run_config['inference_iterations'])),
+                                             nans.repeat(run_config['inference_iterations']+1, 1),
+                                             np.ones((1, 2 * (run_config['inference_iterations']+1))),
                                              legend=it_legend,
-                                             title='Mean Gradient Mag.',
-                                             xlabel='Epochs', ylabel='Mean Gradient',
+                                             title='Mean Gradient Magnitude',
+                                             xlabel='Epochs', ylabel='Mean Gradient Mag.',
                                              xformat='log', yformat='log')
         handle_dict['log_var_grad'] = plot_line(self.vis,
-                                                nans.repeat(run_config['inference_iterations'], 1),
-                                                np.ones((1, 2 * run_config['inference_iterations'])),
+                                                nans.repeat(run_config['inference_iterations']+1, 1),
+                                                np.ones((1, 2 * (run_config['inference_iterations']+1))),
                                                 legend=it_legend,
-                                                title='Log Variance Gradient Mag.',
-                                                xlabel='Epochs', ylabel='Log Variance Gradient',
+                                                title='Log Variance Gradient Magnitude',
+                                                xlabel='Epochs', ylabel='Log Variance Gradient Mag.',
                                                 xformat='log', yformat='log')
         ########################################################################
-        # Learning gradient magnitudes
+        # Model parameter gradient magnitudes
         ########################################################################
         handle_dict['param_grad'] = plot_line(self.vis, nans, np.ones((1, 2)),
                                               legend=['Inf.', 'Gen.'],
@@ -107,17 +108,33 @@ class Plotter(object):
         ########################################################################
         # Inference improvement
         ########################################################################
-        # TODO
-
+        it_legend = []
+        for split in ['Train', 'Val']:
+            for it_num in range(1, run_config['inference_iterations']+1):
+                it_legend.append(split + ', Iteration ' + str(it_num))
+        handle_dict['inf_improvement'] = plot_line(self.vis,
+                                                   nans.repeat(run_config['inference_iterations'], 1),
+                                                   np.ones((1, 2*run_config['inference_iterations'])),
+                                                   legend=it_legend,
+                                                   title='Inference Improvement',
+                                                   xlabel='Epochs', ylabel='Relative Improvement (%)',
+                                                   xformat='log', yformat='linear')
         ########################################################################
         # Misc.
         ########################################################################
+        it_legend = []
+        for split in ['Train', 'Val']:
+            for it_num in range(run_config['inference_iterations']+1):
+                it_legend.append(split + ', Iteration ' + str(it_num))
         handle_dict['lr'] = plot_line(self.vis, nans, np.ones((1, 2)), legend=['Inf.', 'Gen.'],
                                       title='Learning Rates', xlabel='Epochs',
                                       ylabel='Learning Rate', xformat='log', yformat='log')
-        handle_dict['out_log_var'] = plot_line(self.vis, nans, np.ones((1, 2)),
-                                               legend=['Train', 'Val'], title='Output Log Variance',
-                                               xlabel='Epochs', ylabel='Log Variance',
+        handle_dict['out_log_var'] = plot_line(self.vis,
+                                               nans.repeat(run_config['inference_iterations']+1, 1),
+                                               np.ones((1, 2 * (run_config['inference_iterations']+1))),
+                                               legend=it_legend,
+                                               title='Output Log Variance',
+                                               xlabel='Epochs', ylabel='Output Log Variance',
                                                xformat='log', yformat='linear')
         ########################################################################
         return handle_dict
@@ -127,20 +144,20 @@ class Plotter(object):
         Function to plot all results.
         """
         # plot the average total and per step metrics
-        metrics = [out_dict['free_energy'], out_dict['cond_log_like'], out_dict['kl_div']]
+        metrics = [out_dict['free_energy'][-1], out_dict['cond_log_like'][-1], out_dict['kl_div'][-1]]
         self._plot_metrics(metrics, train_val)
 
         # plot the inference gradient magnitudes
-        # inf_grads = [out_dict['mean_grad'], out_dict['log_var_grad']]
-        # self._plot_inf_grads(inf_grads, train_val)
+        inf_grads = [out_dict['mean_grad'].mean(axis=0), out_dict['log_var_grad'].mean(axis=0)]
+        self._plot_inf_grads(inf_grads, train_val)
 
         # plot the parameter gradient magnitudes
-        # if optimizers is not None:
-        #     plot_param_grads(out_dict['avg_param_grad_mags'], epoch, handle_dict)
-        #     plot_opt_lr(optimizers, epoch, handle_dict)
+        if train_val == 'Train':
+            param_grads = [out_dict['inf_param_grad'], out_dict['gen_param_grad']]
+            self._plot_param_grads(param_grads)
 
         # plot inference improvement
-        # self._plot_inf_improvement()
+        self._plot_inf_improvement(out_dict['free_energy'].mean(axis=2).mean(axis=0), train_val)
 
         # plot miscellaneous results
         lr = out_dict['lr'] if 'lr' in out_dict else None
@@ -163,7 +180,8 @@ class Plotter(object):
                      win=self.handle_dict['kl'], name=train_val)
 
         # per step metrics
-        for step_num in range(1, data_config['sequence_length']+1):
+        n_steps = data_config['sequence_length'] - 1
+        for step_num in range(1, n_steps+1):
             update_trace(self.vis, np.array([free_energy.mean(axis=0)[step_num-1]]),
                          np.array([self.epoch]).astype(int),
                          win=self.handle_dict['fe_step'],
@@ -182,25 +200,50 @@ class Plotter(object):
         Plot inference gradient magnitudes.
         """
         mean_grad, log_var_grad = inf_grads
+        for it_num in range(run_config['inference_iterations']+1):
+            update_trace(self.vis, np.array([mean_grad[it_num]]),
+                         np.array([self.epoch]).astype(int),
+                         win=self.handle_dict['mean_grad'],
+                         name=train_val + ', Iteration ' + str(it_num))
+            update_trace(self.vis, np.array([log_var_grad[it_num]]),
+                         np.array([self.epoch]).astype(int),
+                         win=self.handle_dict['log_var_grad'],
+                         name=train_val + ', Iteration ' + str(it_num))
 
-    def _plot_param_grads(self, param_grads, train_val):
+    def _plot_param_grads(self, param_grads):
         """
         Plot parameter gradient magnitudes.
         """
-        pass
+        inf_param_grad, gen_param_grad = param_grads
+        update_trace(self.vis, np.array([inf_param_grad]),
+                     np.array([self.epoch]).astype(int),
+                     win=self.handle_dict['param_grad'],
+                     name='Inf.')
+        update_trace(self.vis, np.array([gen_param_grad]),
+                     np.array([self.epoch]).astype(int),
+                     win=self.handle_dict['param_grad'],
+                     name='Gen.')
 
-    def _plot_inf_improvement(self):
+    def _plot_inf_improvement(self, free_energy, train_val):
         """
-        Plot inference improvement.
+        Plot inference improvement as a percentage of initial estimate.
         """
-        pass
+        for it_num in range(1, run_config['inference_iterations']+1):
+            improvement = 100. * ((free_energy[0] - free_energy[it_num]) / free_energy[0])
+            update_trace(self.vis, np.array([improvement]),
+                         np.array([self.epoch]).astype(int),
+                         win=self.handle_dict['inf_improvement'],
+                         name=train_val + ', Iteration ' + str(it_num))
 
     def _plot_misc(self, out_log_var, lr, train_val):
         """
         Plot miscellaneous results.
         """
-        update_trace(self.vis, np.array([out_log_var.mean()]), np.array([self.epoch]).astype(int),
-                     win=self.handle_dict['out_log_var'], name=train_val)
+        for it_num in range(run_config['inference_iterations']+1):
+            update_trace(self.vis, np.array([out_log_var[it_num].mean()]),
+                         np.array([self.epoch]).astype(int),
+                         win=self.handle_dict['out_log_var'],
+                         name=train_val + ', Iteration ' + str(it_num))
         if lr is not None:
             update_trace(self.vis, np.array([lr[0]]), np.array([self.epoch]).astype(int),
                          win=self.handle_dict['lr'], name='Inf.')

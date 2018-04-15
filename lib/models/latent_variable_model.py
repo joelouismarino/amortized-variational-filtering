@@ -5,7 +5,7 @@ from lib.distributions import Normal
 
 class LatentVariableModel(nn.Module):
     """
-    Abstract class for a (dynamical) latent variable model (DLVM). All models
+    Abstract class for a (dynamical) latent variable model. All models
     inherit from this class.
     """
     def __init__(self, model_config):
@@ -68,7 +68,7 @@ class LatentVariableModel(nn.Module):
         """
         kl = []
         for latent_level in self.latent_levels:
-            level_kl = latent_level.latent.kl_divergence(analytical=False)
+            level_kl = latent_level.latent.kl_divergence()
             for dim in range(2, len(level_kl.data.shape)):
                 level_kl = level_kl.sum(dim) # sum over data dimensions
             level_kl = level_kl.mean(1) # average over sample dimension
@@ -149,5 +149,17 @@ class LatentVariableModel(nn.Module):
     def generative_parameters(self):
         """
         Abstract method for obtaining the generative parameters.
+        """
+        raise NotImplementedError
+
+    def inference_mode(self):
+        """
+        Absract method to set the model's current mode to inference.
+        """
+        raise NotImplementedError
+
+    def generative_mode(self):
+        """
+        Abstract method to set the model's current mode to generation.
         """
         raise NotImplementedError

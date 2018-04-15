@@ -29,8 +29,8 @@ class LSTMLayer(Layer):
         self.lstm = nn.LSTMCell(n_in, n_units)
         self.initial_hidden = Parameter(dt.zeros(1, n_units))
         self.initial_cell = Parameter(dt.zeros(1, n_units))
-        self.hidden_state = self._prev_hidden_state = None
-        self.cell_state = None
+        self.hidden_state = self._hidden_state = None
+        self.cell_state = self._cell_state = None
 
     def forward(self, input):
         """
@@ -43,14 +43,15 @@ class LSTMLayer(Layer):
             # re-initialize the cell state
             self.cell_state = self.initial_cell.repeat(input.data.shape[0], 1)
         # perform forward computation
-        self.hidden_state, self.cell_state = self.lstm.forward(input, (self.hidden_state, self.cell_state))
-        return self.hidden_state
+        self._hidden_state, self._cell_state = self.lstm.forward(input, (self.hidden_state, self.cell_state))
+        return self._hidden_state
 
     def step(self):
         """
         Method to step the layer forward in the sequence.
         """
-        pass
+        self.hidden_state = self._hidden_state
+        self.cell_state = self._cell_state
 
     def re_init(self, input=None):
         """

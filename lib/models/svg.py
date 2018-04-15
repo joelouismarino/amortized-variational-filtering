@@ -27,6 +27,7 @@ class SVG(LatentVariableModel):
             model_config (dict): dictionary containing model configuration params
         """
         model_type = model_config['model_type'].lower()
+        self.modified = model_config['modified']
         self.inference_procedure = model_config['inference_procedure'].lower()
         level_config = {}
         latent_config = {}
@@ -36,7 +37,7 @@ class SVG(LatentVariableModel):
         level_config['inference_config'] = {'n_layers': 1, 'n_units': 256, 'n_in': 128}
         level_config['generative_config'] = {'n_layers': 1, 'n_units': 256, 'n_in': 128}
         if model_type == 'sm_mnist':
-            from lib.modules.networks.dcgan import encoder, decoder
+            from lib.modules.networks.dcgan_64 import encoder, decoder
             self.encoder = encoder(128, 1)
             self.decoder = decoder(128, 1)
             latent_config['n_variables'] = 10
@@ -118,12 +119,10 @@ class SVG(LatentVariableModel):
         g = self.decoder_lstm(torch.cat([z, prev_h], dim=2).view(batch_size * n_samples, -1))
         g = self.decoder_lstm_output(g)
         output = self.decoder([g, prev_skip])
-        # TODO: reshape back into batch_size x n_samples x ...
         b, _, h, w = output.data.shape
-        # output = output.view(b, -1, 6, h, w)
-        output = output.view(b, -1, 3, h, w)
+        output = output.view(b, -1, 6, h, w)
         self.output_dist.mean = torch.nn.Sigmoid()(output[:, :, :3, :, :])
-        # self.output_dist.log_var = output[:, :, 3:, :, :]
+        self.output_dist.log_var = output[:, :, 3:, :, :]
         return torch.clamp(self.output_dist.sample(), 0., 1.)
 
     def step(self):
@@ -176,3 +175,23 @@ class SVG(LatentVariableModel):
         params.extend(list(self.decoder_lstm.parameters()))
         params.append(self.output_dist.log_var)
         return params
+
+    def inference_mode(self):
+        """
+        Method to set the model's current mode.
+        """
+        self.mode = 'inference'
+        if self.inference_procedure == 'direct':
+            pass
+        else:
+            pass
+
+    def generative_mode(self):
+        """
+        Method to set the model's current mode.
+        """
+        self.mode = 'generation'
+        if self.inference_procedure == 'direct':
+            pass
+        else:
+            pass

@@ -70,7 +70,6 @@ class FullyConnectedLatentVariable(LatentVariable):
         # retain the gradients (for inference)
         self.approx_post.mean.retain_grad()
         self.approx_post.log_var.retain_grad()
-        return self.approx_post.sample(resample=True)
 
     def generate(self, input, gen, n_samples):
         """
@@ -87,9 +86,10 @@ class FullyConnectedLatentVariable(LatentVariable):
             input = input.view(b * s, n)
             self.prior.mean = self.prior_mean(input).view(b, s, -1)
             self.prior.log_var = self.prior_log_var(input).view(b, s, -1)
-        if gen:
-            return self.prior.sample(n_samples, resample=True)
-        return self.approx_post.sample(n_samples, resample=True)
+        dist = self.prior if gen else self.approx_post
+        sample = dist.sample(n_samples, resample=True)
+        sample = sample.detach() if self.detach else sample
+        return sample
 
     def re_init(self):
         """
@@ -97,13 +97,13 @@ class FullyConnectedLatentVariable(LatentVariable):
         """
         self.re_init_approx_posterior()
         self.prior.re_init()
-
+        
     def re_init_approx_posterior(self):
         """
         Method to reinitialize the approximate posterior.
         """
-        mean = self.prior.mean.data.clone().mean(dim=1)
-        log_var = self.prior.log_var.data.clone().mean(dim=1)
+        mean = self.prior.mean.detach().mean(dim=1).data
+        log_var = self.prior.log_var.detach().mean(dim=1).data
         self.approx_post.re_init(mean, log_var)
 
     def step(self):

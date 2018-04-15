@@ -1,4 +1,5 @@
 import torch.nn as nn
+from lib.distributions import Normal
 
 
 class LatentVariable(nn.Module):
@@ -9,6 +10,8 @@ class LatentVariable(nn.Module):
         super(LatentVariable, self).__init__()
         self.approx_post = self.prior = None
         self.variable_config = variable_config
+        self.inference_procedure = None
+        self.detach = True # whether or not to detach latent samples
 
     def infer(self, input):
         """
@@ -59,13 +62,16 @@ class LatentVariable(nn.Module):
             analytical (boolean): whether to use the analytical form of the KL
                                   divergence for exact evaluation
         """
-        # TODO: implement general KL divergence computation
-        # raise NotImplementedError
-        # if analytical:
-        #     return kld.kl_divergence(self.approx_posterior, self.prior)
-        # else:
-        z = self.approx_post.sample()
-        return self.approx_post.log_prob(z) - self.prior.log_prob(z)
+        if analytical:
+            # analytical KL divergence currently only defined for Gaussians
+            assert type(self.approx_post) == type(self.prior) == Normal
+            var_ratio = self.approx_post.log_var.exp() / self.prior.log_var.exp()
+            t1 = (self.approx_post.mean - self.prior.mean).pow(2) / self.prior.log_var.exp()
+            return 0.5 * (var_ratio + t1 - 1 - var_ratio.log())
+        else:
+            # numerically estimated KL divergence
+            z = self.approx_post.sample()
+            return self.approx_post.log_prob(z) - self.prior.log_prob(z)
 
     def inference_parameters(self):
         """
@@ -76,6 +82,12 @@ class LatentVariable(nn.Module):
     def generative_parameters(self):
         """
         Abstract method to obtain generative parameters.
+        """
+        raise NotImplementedError
+
+    def approx_posterior_parameters(self):
+        """
+        Abstract method to obtain approximate posterior parameters.
         """
         raise NotImplementedError
 
