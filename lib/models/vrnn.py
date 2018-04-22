@@ -94,6 +94,7 @@ class VRNN(LatentVariableModel):
                 raise NotImplementedError
             inf_config = {'n_in': input_dim, 'n_units': x_units,
                           'n_layers': hidden_layers, 'non_linearity': 'relu'}
+            # inf_config['connection_type'] = 'highway'
             self.inf_model = FullyConnectedNetwork(inf_config)
 
         # z model

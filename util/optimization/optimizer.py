@@ -1,4 +1,5 @@
 import torch.optim as opt
+from torch.autograd import Variable
 
 
 class Optimizer(object):
@@ -29,26 +30,34 @@ class Optimizer(object):
         Collects the current gradients, and adds them to the stored gradients.
         """
         for ind, param in enumerate(self.parameters):
-            self._n_iter += 1
-            if self.stored_grads[ind] is None:
-                self.stored_grads[ind] = param.grad
-            else:
+            if param.grad is not None:
                 self.stored_grads[ind] += param.grad
 
     def step(self):
         """
         Applies the stored gradients to update the parameters.
         """
+        assert self._n_iter > 0, 'The optimizer does not have gradients to apply.'
         for ind, param in enumerate(self.parameters):
             param.grad = self.stored_grads[ind] / self._n_iter
         self.opt.step()
         self._n_iter = 0
 
+    def step_iter(self, n_steps=1):
+        """
+        Steps the internal iterator that is used to scale the gradients.
+
+        Args:
+            n_steps (optional, int): number of steps to step the iterator
+        """
+        self._n_iter += n_steps
+
     def zero_stored_grad(self):
         """
-        Clears the stored gradients.
+        Replaces the stored gradients with zeros.
         """
-        self.stored_grads = [None for _ in range(len(list(self.parameters)))]
+        self.stored_grads = [Variable(param.data.new(param.size()).zero_()) \
+                            for param in self.parameters]
 
     def zero_current_grad(self):
         """

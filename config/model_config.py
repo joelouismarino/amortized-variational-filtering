@@ -4,6 +4,8 @@ model_config = {
     'modified': True
 }
 
+assert model_config['inference_procedure'] in ['direct', 'gradient', 'error']
+
 ## SVG
 if model_config['architecture'].lower() == 'svg':
     model_config['model_type'] = 'bair_robot_pushing'

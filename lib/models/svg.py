@@ -42,12 +42,24 @@ class SVG(LatentVariableModel):
             self.decoder = decoder(128, 1)
             latent_config['n_variables'] = 10
             level_config['latent_config'] = latent_config
+            if self.modified:
+                raise NotImplementedError
+                # if inference_procedure == 'direct':
+                #     pass
+                # elif inference_procedure == 'iterative':
+                #     pass
         elif model_type == 'kth_actions':
             from lib.modules.networks.vgg_64 import encoder, decoder
             self.encoder = encoder(128, 1)
             self.decoder = decoder(128, 2)
             latent_config['n_variables'] = 32
             level_config['latent_config'] = latent_config
+            if self.modified:
+                raise NotImplementedError
+                # if inference_procedure == 'direct':
+                #     pass
+                # elif inference_procedure == 'iterative':
+                #     pass
         elif model_type == 'bair_robot_pushing':
             from lib.modules.networks.vgg_64 import encoder, decoder
             self.encoder = encoder(128, 3)
@@ -55,16 +67,24 @@ class SVG(LatentVariableModel):
             self.decoder = decoder(128, 3)
             latent_config['n_variables'] = 64
             level_config['latent_config'] = latent_config
-            # if inference_procedure == 'direct':
-            #     pass
-            # elif inference_procedure == 'iterative':
-            #     pass
+            if self.modified:
+                raise NotImplementedError
+                # if inference_procedure == 'direct':
+                #     pass
+                # elif inference_procedure == 'iterative':
+                #     pass
         else:
             raise Exception('SVG model type must be one of 1) sm_mnist, 2) \
                             kth_action, or 3) bair_robot_pushing. Invalid model \
                             type: ' + model_type + '.')
 
-        self.latent_levels = nn.ModuleList([LSTMLatentLevel(level_config)])
+        if self.modified:
+            # use a recurrent latent level
+            raise NotImplementedError
+        else:
+            # use a recurrent latent level
+            self.latent_levels = nn.ModuleList([LSTMLatentLevel(level_config)])
+
         self.decoder_lstm = LSTMNetwork({'n_layers': 2, 'n_units': 256,
                                          'n_in': 128 + latent_config['n_variables']})
         self.decoder_lstm_output = FullyConnectedLayer({'n_in': 256, 'n_out': 128,

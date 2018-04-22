@@ -41,9 +41,8 @@ while True:
     logger.log(out, 'Train'); plotter.plot(out, 'Train')
     if val_data:
         # validation
-        # out = validate(val_data, model)
-        # logger.log(out, 'Val'); plotter.plot(out, 'Val')
-        pass
+        out = validate(val_data, model)
+        logger.log(out, 'Val'); plotter.plot(out, 'Val')
     if logger.save_epoch():
         logger.save_checkpoint(model, optimizers)
     logger.step(); plotter.step()

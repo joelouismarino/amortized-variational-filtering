@@ -1,48 +1,67 @@
 from torch.autograd import Variable
 from config import run_config, data_config
-
-import time
 import numpy as np
 
 
 def train(data, model, optimizers):
     """
-    Function to train the model on data and update using optimizers.
+    Function to train the model on data.
+    """
+    return run(data, model, optimizers)
+
+
+def validate(data, model):
+    """
+    Function to validate the model on data.
+    """
+    return run(data, model)
+
+
+def run(data, model, optimizers=None):
+    """
+    Function to train/validate the model on data.
 
     Args:
         data (DataLoader): a data loader that provides batches of sequence data
         model (LatentVariableModel): model to train
-        optimizers (tuple): inference and generative optimizers respectively
+        optimizers (optional, tuple): inference and generative optimizers respectively
     """
-    inf_opt, gen_opt = optimizers
-    model.train()
+    if optimizers:
+        inf_opt, gen_opt = optimizers
+        model.train()
+    else:
+        model.eval()
 
     out_dict = {}
     n_batches = len(data)
     n_steps = data_config['sequence_length']-1
     n_inf_iter = run_config['inference_iterations']
     assert n_inf_iter > 0, 'Number of inference iterations must be positive.'
+    # to record the statistics while running
     out_dict['free_energy']    = np.zeros((n_batches, n_inf_iter+1, n_steps))
     out_dict['cond_log_like']  = np.zeros((n_batches, n_inf_iter+1, n_steps))
     out_dict['kl_div']         = np.zeros((n_batches, n_inf_iter+1, n_steps))
     out_dict['out_log_var']    = np.zeros((n_batches, n_inf_iter+1, n_steps))
     out_dict['mean_grad']      = np.zeros((n_batches, n_inf_iter+1))
     out_dict['log_var_grad']   = np.zeros((n_batches, n_inf_iter+1))
-    out_dict['inf_param_grad'] = np.zeros(n_batches)
-    out_dict['gen_param_grad'] = np.zeros(n_batches)
+    if optimizers:
+        out_dict['inf_param_grad'] = np.zeros(n_batches)
+        out_dict['gen_param_grad'] = np.zeros(n_batches)
 
     # loop over training examples
     for batch_ind, batch in enumerate(data):
-        print('Iteration: ' + str(batch_ind) + ' of ' + str(len(data)))
+        print('Iteration: ' + str(batch_ind+1) + ' of ' + str(len(data)))
         # re-initialize the model from the data
         batch = Variable(batch.cuda())
         model.re_init(batch[0])
 
         # clear all of the gradients
-        inf_opt.zero_stored_grad(); inf_opt.zero_current_grad()
-        gen_opt.zero_stored_grad(); gen_opt.zero_current_grad()
+        if optimizers:
+            inf_opt.zero_stored_grad(); inf_opt.zero_current_grad()
+            gen_opt.zero_stored_grad(); gen_opt.zero_current_grad()
 
         batch_size = batch.data.shape[1]
+        # to record the statistics while running on this batch
         step_free_energy     = np.zeros((batch_size, n_inf_iter+1, n_steps))
         step_cond_log_like   = np.zeros((batch_size, n_inf_iter+1, n_steps))
         step_kl_div          = np.zeros((batch_size, n_inf_iter+1, n_steps))
@@ -61,7 +80,8 @@ def train(data, model, optimizers):
             model.inference_mode()
 
             # clear the inference model's current gradients
-            inf_opt.zero_current_grad()
+            if optimizers:
+                inf_opt.zero_current_grad()
 
             # generate a prediction
             model.generate()
@@ -98,8 +118,12 @@ def train(data, model, optimizers):
                 step_mean_grad[:, inf_it+1, step_ind]      = model.latent_levels[0].latent.approx_posterior_gradients()[0].abs().mean(dim=1).data.cpu().numpy()
                 step_log_var_grad[:, inf_it+1, step_ind]   = model.latent_levels[0].latent.approx_posterior_gradients()[1].abs().mean(dim=1).data.cpu().numpy()
 
-            # collect the inference model gradients into the stored gradients
-            inf_opt.collect()
+            if optimizers:
+                # collect the inference model gradients into the stored gradients
+                inf_opt.collect()
+                # increment the iterators the appropriate number of steps
+                inf_opt.step_iter(n_inf_iter)
+                gen_opt.step_iter()
 
             # set the mode to generation
             model.generative_mode()
@@ -127,19 +151,24 @@ def train(data, model, optimizers):
             import ipdb; ipdb.set_trace()
 
         # clear the generative model's current gradients
-        gen_opt.zero_current_grad()
+        if optimizers:
+            gen_opt.zero_current_grad()
 
         # get the gradients (for the generative model)
         total_free_energy.backward()
 
-        # collect the gradients into the stored gradients
-        gen_opt.collect()
+        if optimizers:
+            # collect the gradients into the stored gradients
+            gen_opt.collect()
 
-        out_dict['inf_param_grad'] = np.mean([grad.abs().mean().data.cpu().numpy() for grad in inf_opt.stored_grads])
-        out_dict['gen_param_grad'] = np.mean([grad.abs().mean().data.cpu().numpy() for grad in gen_opt.stored_grads])
+            out_dict['inf_param_grad'][batch_ind] = np.mean([grad.abs().mean().data.cpu().numpy() for grad in inf_opt.stored_grads])
+            out_dict['gen_param_grad'][batch_ind] = np.mean([grad.abs().mean().data.cpu().numpy() for grad in gen_opt.stored_grads])
 
-        # apply the gradients to the inference and generative models
-        inf_opt.step(); gen_opt.step()
+            print(inf_opt._n_iter)
+            print(gen_opt._n_iter)
+
+            # apply the gradients to the inference and generative models
+            inf_opt.step(); gen_opt.step()
 
         out_dict['free_energy'][batch_ind]   = step_free_energy.mean(axis=0)
         out_dict['cond_log_like'][batch_ind] = step_cond_log_like.mean(axis=0)
@@ -148,25 +177,12 @@ def train(data, model, optimizers):
         out_dict['mean_grad'][batch_ind]     = step_mean_grad.mean(axis=2).mean(axis=0)
         out_dict['log_var_grad'][batch_ind]  = step_log_var_grad.mean(axis=2).mean(axis=0)
 
-    out_dict['lr'] = (inf_opt.opt.param_groups[0]['lr'], gen_opt.opt.param_groups[0]['lr'])
+    # average over the batch dimension
+    for item_key in out_dict:
+        out_dict[item_key] = out_dict[item_key].mean(axis=0)
+
+    # record the learning rate
+    if optimizers:
+        out_dict['lr'] = (inf_opt.opt.param_groups[0]['lr'], gen_opt.opt.param_groups[0]['lr'])
 
     return out_dict
-
-
-def validate(data, model):
-    """
-    Function to validate the model on data and update using optimizers and schedulers.
-
-    Args:
-        data (DataLoader): a data loader that provides batches of sequence data
-        model (LatentVariableModel): model to train
-    """
-
-    model.eval()
-
-    for batch_ind, batch in enumerate(data):
-        model.re_init()
-        for step_ind, step_batch in enumerate(batch):
-            model.infer(Variable(step_batch))
-            model.generate()
-            model.step()
