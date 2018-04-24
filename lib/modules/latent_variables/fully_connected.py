@@ -25,18 +25,24 @@ class FullyConnectedLatentVariable(LatentVariable):
         self.inference_procedure = latent_config['inference_procedure']
         n_variables = latent_config['n_variables']
         n_inputs = latent_config['n_in']
-        # approximate posterior inputs
-        self.approx_post_mean = FullyConnectedLayer({'n_in': n_inputs[0],
-                                                     'n_out': n_variables})
-        self.approx_post_log_var = FullyConnectedLayer({'n_in': n_inputs[0],
-                                                        'n_out': n_variables})
-        if self.inference_procedure != 'direct':
+
+        if self.inference_procedure in ['direct', 'gradient', 'error']:
+            # approximate posterior inputs
+            self.approx_post_mean = FullyConnectedLayer({'n_in': n_inputs[0],
+                                                         'n_out': n_variables})
+            self.approx_post_log_var = FullyConnectedLayer({'n_in': n_inputs[0],
+                                                            'n_out': n_variables})
+        if self.inference_procedure in ['gradient', 'error']:
             self.approx_post_mean_gate = FullyConnectedLayer({'n_in': n_inputs[0],
                                                               'n_out': n_variables,
                                                               'non_linearity': 'sigmoid'})
             self.approx_post_log_var_gate = FullyConnectedLayer({'n_in': n_inputs[0],
                                                                  'n_out': n_variables,
                                                                  'non_linearity': 'sigmoid'})
+            # self.close_gates()
+        if self.inference_procedure == 'sgd':
+            self.learning_rate = latent_config['inf_lr']
+
         # prior inputs
         self.prior_mean = FullyConnectedLayer({'n_in': n_inputs[1],
                                                'n_out': n_variables})
@@ -55,18 +61,26 @@ class FullyConnectedLatentVariable(LatentVariable):
         Args:
             input (Tensor): input to the inference procedure
         """
-        approx_post_mean = self.approx_post_mean(input)
-        approx_post_log_var = self.approx_post_log_var(input)
+        if self.inference_procedure in ['direct', 'gradient', 'error']:
+            approx_post_mean = self.approx_post_mean(input)
+            approx_post_log_var = self.approx_post_log_var(input)
         if self.inference_procedure == 'direct':
             self.approx_post.mean = approx_post_mean
             self.approx_post.log_var = approx_post_log_var
-        else:
+        elif self.inference_procedure in ['gradient', 'error']:
             approx_post_mean_gate = self.approx_post_mean_gate(input)
             self.approx_post.mean = approx_post_mean_gate * self.approx_post.mean.detach() \
                                     + (1 - approx_post_mean_gate) * approx_post_mean
             approx_post_log_var_gate = self.approx_post_log_var_gate(input)
             self.approx_post.log_var = approx_post_log_var_gate * self.approx_post.log_var.detach() \
                                        + (1 - approx_post_log_var_gate) * approx_post_log_var
+        elif self.inference_procedure == 'sgd':
+            self.approx_post.mean = self.approx_post.mean.detach() - self.learning_rate * input[0]
+            self.approx_post.log_var = self.approx_post.log_var.detach() - self.learning_rate * input[1]
+            self.approx_post.mean.requires_grad = True
+            self.approx_post.log_var.requires_grad = True
+        else:
+            raise NotImplementedError
         # retain the gradients (for inference)
         self.approx_post.mean.retain_grad()
         self.approx_post.log_var.retain_grad()
@@ -97,7 +111,7 @@ class FullyConnectedLatentVariable(LatentVariable):
         """
         self.re_init_approx_posterior()
         self.prior.re_init()
-        
+
     def re_init_approx_posterior(self):
         """
         Method to reinitialize the approximate posterior.
@@ -131,6 +145,10 @@ class FullyConnectedLatentVariable(LatentVariable):
         if averaged:
             n_error = n_error.mean(dim=1)
         return n_error
+
+    def close_gates(self):
+        nn.init.constant(self.approx_post_mean_gate.linear.bias, 5.)
+        nn.init.constant(self.approx_post_log_var_gate.linear.bias, 5.)
 
     def inference_parameters(self):
         """

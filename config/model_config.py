@@ -1,10 +1,18 @@
 model_config = {
     'architecture': 'vrnn',
-    'inference_procedure': 'error',
-    'modified': True
+    'inference_procedure': 'gradient',
+    'modified': True,
+    'global_output_log_var': False,
 }
 
-assert model_config['inference_procedure'] in ['direct', 'gradient', 'error']
+assert model_config['inference_procedure'] in ['direct', 'gradient', 'error', 'sgd']
+
+# whether or not to concatenate the observation to inference model input
+if model_config['inference_procedure'] in ['gradient', 'error']:
+    model_config['concat_observation'] = True
+
+if model_config['inference_procedure'] == 'sgd':
+    model_config['learning_rate'] = 0.01
 
 ## SVG
 if model_config['architecture'].lower() == 'svg':

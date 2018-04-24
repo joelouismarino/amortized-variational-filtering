@@ -125,6 +125,9 @@ def run(data, model, optimizers=None):
                 inf_opt.step_iter(n_inf_iter)
                 gen_opt.step_iter()
 
+                if True:
+                    inf_opt.step()
+
             # set the mode to generation
             model.generative_mode()
 
@@ -168,7 +171,8 @@ def run(data, model, optimizers=None):
             print(gen_opt._n_iter)
 
             # apply the gradients to the inference and generative models
-            inf_opt.step(); gen_opt.step()
+            # inf_opt.step()
+            gen_opt.step()
 
         out_dict['free_energy'][batch_ind]   = step_free_energy.mean(axis=0)
         out_dict['cond_log_like'][batch_ind] = step_cond_log_like.mean(axis=0)

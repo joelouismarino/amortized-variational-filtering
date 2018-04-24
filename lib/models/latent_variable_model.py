@@ -67,8 +67,9 @@ class LatentVariableModel(nn.Module):
             averaged (boolean): whether to average over the batch dimension
         """
         kl = []
-        for latent_level in self.latent_levels:
-            level_kl = latent_level.latent.kl_divergence()
+        for level_ind, latent_level in enumerate(self.latent_levels):
+            analytical = (level_ind == len(self.latent_levels)-1)
+            level_kl = latent_level.latent.kl_divergence(analytical)
             for dim in range(2, len(level_kl.data.shape)):
                 level_kl = level_kl.sum(dim) # sum over data dimensions
             level_kl = level_kl.mean(1) # average over sample dimension

@@ -32,8 +32,8 @@ class VRNN(LatentVariableModel):
         self._detach_h = False
         latent_config = {}
         level_config = {}
-         # hard coded because we handle inference here in the model
-        latent_config['inference_procedure'] = 'direct'
+        latent_config['inference_procedure'] = self.inference_procedure
+        # hard coded because we handle inference here in the model
         level_config['inference_procedure'] = 'direct'
 
         if model_type == 'timit':
@@ -83,37 +83,50 @@ class VRNN(LatentVariableModel):
 
         # inf model
         if self.modified:
-            # set the input encoding size
-            if self.inference_procedure == 'direct':
-                input_dim = x_dim
-            elif self.inference_procedure == 'gradient':
-                input_dim = 4 * z_dim
-            elif self.inference_procedure == 'error':
-                input_dim = x_dim + 3 * z_dim
-            else:
-                raise NotImplementedError
-            inf_config = {'n_in': input_dim, 'n_units': x_units,
-                          'n_layers': hidden_layers, 'non_linearity': 'relu'}
-            # inf_config['connection_type'] = 'highway'
-            self.inf_model = FullyConnectedNetwork(inf_config)
+            if self.inference_procedure in ['direct', 'gradient', 'error']:
+                # set the input encoding size
+                if self.inference_procedure == 'direct':
+                    input_dim = x_dim
+                elif self.inference_procedure == 'gradient':
+                    input_dim = 4 * z_dim
+                    if model_config['concat_observation']:
+                        input_dim += x_dim
+                elif self.inference_procedure == 'error':
+                    input_dim = x_dim + 3 * z_dim
+                    if model_config['concat_observation']:
+                        input_dim += x_dim
+                else:
+                    raise NotImplementedError
 
-        # z model
-        z_config = {'n_in': z_dim, 'n_units': z_units,
-                    'n_layers': hidden_layers, 'non_linearity': 'relu'}
-        self.z_model = FullyConnectedNetwork(z_config)
+                inf_config = {'n_in': input_dim, 'n_units': encoder_units,
+                              'n_layers': hidden_layers, 'non_linearity': 'relu'}
+                # inf_config['connection_type'] = 'concat_input'
+                inf_config['connection_type'] = 'highway'
+                # self.inf_model = FullyConnectedNetwork(inf_config)
+            else:
+                inf_config = None
+                latent_config['inf_lr'] = model_config['learning_rate']
+        else:
+            inf_input_units = x_units if self.modified else lstm_units + x_units
+            inf_config = {'n_in': inf_input_units, 'n_units': encoder_units,
+                          'n_layers': hidden_layers, 'non_linearity': 'relu'}
 
         # latent level (encoder model and prior model)
-        inf_config = {'n_in': lstm_units + x_units, 'n_units': encoder_units,
-                      'n_layers': hidden_layers, 'non_linearity': 'relu'}
         level_config['inference_config'] = inf_config
         gen_config = {'n_in': lstm_units, 'n_units': prior_units,
                       'n_layers': hidden_layers, 'non_linearity': 'relu'}
         level_config['generative_config'] = gen_config
         latent_config['n_variables'] = z_dim
         latent_config['n_in'] = (encoder_units, prior_units)
+        # latent_config['n_in'] = (encoder_units+input_dim, prior_units)
         level_config['latent_config'] = latent_config
         latent = FullyConnectedLatentLevel(level_config)
         self.latent_levels = nn.ModuleList([latent])
+
+        # z model
+        z_config = {'n_in': z_dim, 'n_units': z_units,
+                    'n_layers': hidden_layers, 'non_linearity': 'relu'}
+        self.z_model = FullyConnectedNetwork(z_config)
 
         # decoder
         decoder_config = {'n_in': lstm_units + z_units, 'n_units': decoder_units,
@@ -122,7 +135,10 @@ class VRNN(LatentVariableModel):
 
         self.output_dist = Normal()
         self.output_mean = FullyConnectedLayer({'n_in': decoder_units, 'n_out': x_dim})
-        self.output_log_var = FullyConnectedLayer({'n_in': decoder_units, 'n_out': x_dim})
+        if model_config['global_output_log_var']:
+            self.output_log_var = nn.Parameter(torch.zeros(x_dim))
+        else:
+            self.output_log_var = FullyConnectedLayer({'n_in': decoder_units, 'n_out': x_dim})
 
     def _get_encoding_form(self, observation):
         """
@@ -143,7 +159,10 @@ class VRNN(LatentVariableModel):
             # concatenate
             grads = torch.cat(grads, dim=1)
             params = torch.cat(self.latent_levels[0].latent.approx_posterior_parameters(), dim=1)
-            return torch.cat([grads, params], dim=1)
+            grads_params = torch.cat([grads, params], dim=1)
+            if self.model_config['concat_observation']:
+                grads_params = torch.cat([grads_params, observation], dim=1)
+            return grads_params
         elif self.inference_procedure == 'error':
             errors = [self._output_error(observation), self.latent_levels[0].latent.error()]
             # normalize
@@ -154,7 +173,13 @@ class VRNN(LatentVariableModel):
             # concatenate
             errors = torch.cat(errors, dim=1)
             params = torch.cat(self.latent_levels[0].latent.approx_posterior_parameters(), dim=1)
-            return torch.cat([errors, params], dim=1)
+            error_params = torch.cat([errors, params], dim=1)
+            if self.model_config['concat_observation']:
+                error_params = torch.cat([errors_params, observation], dim=1)
+            return error_params
+        elif self.inference_procedure == 'sgd':
+            grads = self.latent_levels[0].latent.approx_posterior_gradients()
+            return grads
         else:
             raise NotImplementedError
 
@@ -185,13 +210,14 @@ class VRNN(LatentVariableModel):
         """
         self._x_enc = self.x_model(observation)
         if self.modified:
-            inf_input = self.inf_model(self._get_encoding_form(observation))
+            enc = self._get_encoding_form(observation)
+            self.latent_levels[0].infer(enc)
         else:
             inf_input = self._x_enc
-        prev_h = self._prev_h
-        prev_h = prev_h.detach() if self._detach_h else prev_h
-        enc = torch.cat([inf_input, prev_h], dim=1)
-        self.latent_levels[0].infer(enc)
+            prev_h = self._prev_h
+            prev_h = prev_h.detach() if self._detach_h else prev_h
+            enc = torch.cat([inf_input, prev_h], dim=1)
+            self.latent_levels[0].infer(enc)
 
     def generate(self, gen=False, n_samples=1):
         """
@@ -211,7 +237,12 @@ class VRNN(LatentVariableModel):
         dec = torch.cat([self._z_enc, prev_h], dim=2)
         output = self.decoder_model(dec)
         self.output_dist.mean = self.output_mean(output)
-        self.output_dist.log_var = self.output_log_var(output)
+        if self.model_config['global_output_log_var']:
+            bs, s = output.data.shape[0], output.data.shape[1]
+            log_var = self.output_log_var.view(1, 1, -1).repeat(bs, s, 1)
+            self.output_dist.log_var = torch.clamp(log_var, min=-10)
+        else:
+            self.output_dist.log_var = torch.clamp(self.output_log_var(output), min=-10.)
         return self.output_dist.sample()
 
     def step(self, n_samples=1):
@@ -241,9 +272,8 @@ class VRNN(LatentVariableModel):
         Method for obtaining the inference parameters.
         """
         params = nn.ParameterList()
-        if self.modified:
-            params.extend(list(self.inf_model.parameters()))
-        params.extend(list(self.latent_levels[0].inference_parameters()))
+        if self.inference_procedure != 'sgd':
+            params.extend(list(self.latent_levels[0].inference_parameters()))
         return params
 
     def generative_parameters(self):
@@ -257,7 +287,10 @@ class VRNN(LatentVariableModel):
         params.extend(list(self.z_model.parameters()))
         params.extend(list(self.decoder_model.parameters()))
         params.extend(list(self.output_mean.parameters()))
-        params.extend(list(self.output_log_var.parameters()))
+        if self.model_config['global_output_log_var']:
+            params.append(self.output_log_var)
+        else:
+            params.extend(list(self.output_log_var.parameters()))
         return params
 
     def inference_mode(self):
@@ -271,6 +304,6 @@ class VRNN(LatentVariableModel):
         """
         Method to set the model's current mode to generation.
         """
-        inf =  self.inference_procedure
-        self.latent_levels[0].latent.detach = False if inf == 'direct' else True
-        self._detach_h = False if inf == 'direct' else True
+        inf = self.inference_procedure
+        self.latent_levels[0].latent.detach = True
+        self._detach_h = False

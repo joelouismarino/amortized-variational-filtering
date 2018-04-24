@@ -4,7 +4,7 @@ from latent_variable_model import LatentVariableModel
 from lib.modules.latent_levels import LSTMLatentLevel
 from lib.modules.networks import LSTMNetwork
 from lib.modules.layers import FullyConnectedLayer
-from lib.distributions import Normal
+from lib.distributions import Normal, Bernoulli
 
 
 class SVG(LatentVariableModel):
@@ -29,58 +29,113 @@ class SVG(LatentVariableModel):
         model_type = model_config['model_type'].lower()
         self.modified = model_config['modified']
         self.inference_procedure = model_config['inference_procedure'].lower()
+
         level_config = {}
         latent_config = {}
+
         latent_config['n_in'] = (256, 256) # number of encoder, decoder units
-        latent_config['inference_procedure'] = 'direct' # hard coded because we handle inference here in model
+        latent_config['inference_procedure'] = self.inference_procedure
+         # hard coded because we handle inference here in the model
         level_config['inference_procedure'] = 'direct'
-        level_config['inference_config'] = {'n_layers': 1, 'n_units': 256, 'n_in': 128}
+
+        if not self.modified:
+            level_config['inference_config'] = {'n_layers': 1, 'n_units': 256, 'n_in': 128}
         level_config['generative_config'] = {'n_layers': 1, 'n_units': 256, 'n_in': 128}
+
         if model_type == 'sm_mnist':
             from lib.modules.networks.dcgan_64 import encoder, decoder
             self.encoder = encoder(128, 1)
             self.decoder = decoder(128, 1)
+            self.output_dist = Bernoulli()
             latent_config['n_variables'] = 10
             level_config['latent_config'] = latent_config
             if self.modified:
-                raise NotImplementedError
-                # if inference_procedure == 'direct':
-                #     pass
-                # elif inference_procedure == 'iterative':
-                #     pass
+                if self.inference_procedure == 'direct':
+                    pass
+                elif self.inference_procedure == 'gradient':
+                    pass
+                elif self.inference_procedure == 'error':
+                    pass
+                else:
+                    raise NotImplementedError
+
         elif model_type == 'kth_actions':
             from lib.modules.networks.vgg_64 import encoder, decoder
             self.encoder = encoder(128, 1)
-            self.decoder = decoder(128, 2)
+            if model_config['global_output_log_var']:
+                output_channels = 1
+                self.output_log_var = nn.Parameter(torch.zeros(1, 64, 64))
+            else:
+                output_channels = 2
+            self.decoder = decoder(128, output_channels)
+            self.output_dist = Normal()
             latent_config['n_variables'] = 32
             level_config['latent_config'] = latent_config
             if self.modified:
-                raise NotImplementedError
-                # if inference_procedure == 'direct':
-                #     pass
-                # elif inference_procedure == 'iterative':
-                #     pass
+                if self.inference_procedure == 'direct':
+                    pass
+                elif self.inference_procedure == 'gradient':
+                    pass
+                elif self.inference_procedure == 'error':
+                    pass
+                else:
+                    raise NotImplementedError
+
         elif model_type == 'bair_robot_pushing':
             from lib.modules.networks.vgg_64 import encoder, decoder
             self.encoder = encoder(128, 3)
-            # self.decoder = decoder(128, 6)
-            self.decoder = decoder(128, 3)
+            if model_config['global_output_log_var']:
+                output_channels = 3
+                self.output_log_var = nn.Parameter(torch.zeros(3, 64, 64))
+            else:
+                output_channels = 6
+            self.decoder = decoder(128, output_channels)
+            self.output_dist = Normal()
             latent_config['n_variables'] = 64
             level_config['latent_config'] = latent_config
             if self.modified:
-                raise NotImplementedError
-                # if inference_procedure == 'direct':
-                #     pass
-                # elif inference_procedure == 'iterative':
-                #     pass
+                if self.inference_procedure == 'direct':
+                    # another convolutional encoder
+                    self.inf_encoder = encoder(128, 3)
+                    # fully-connected latent inference model
+                    level_config['inference_config'] = {'n_layers': 2,
+                                                        'n_units': 256,
+                                                        'n_in': 128,
+                                                        'non_linearity': 'relu'}
+                elif self.inference_procedure == 'gradient':
+                    # fully-connected encoder / latent inference model
+                    level_config['inference_config'] = {'n_layers': 3,
+                                                        'n_units': 1024,
+                                                        'n_in': 4 * latent_config['n_variables'],
+                                                        'non_linearity': 'relu'}
+                    if model_config['concat_observation']:
+                        level_config['inference_config']['n_in'] += (3 * 64 * 64)
+                elif self.inference_procedure == 'error':
+                    # convolutional observation error encoder
+                    obs_error_enc_config = {'n_layers': 3,
+                                            'n_filters': 64,
+                                            'n_in': 3,
+                                            'filter_size': 3,
+                                            'non_linearity': 'relu'}
+                    if model_config['concat_observation']:
+                        obs_error_enc_config['n_in'] += 3
+                    self.obs_error_enc = ConvolutionalNetwork(obs_error_enc_config)
+                    # fully-connected error encoder (latent + params + encoded observation errors)
+                    level_config['inference_config'] = {'n_layers': 3,
+                                                        'n_units': 1024,
+                                                        'n_in': 4 * latent_config['n_variables'],
+                                                        'non_linearity': 'relu'}
+                else:
+                    raise NotImplementedError
         else:
             raise Exception('SVG model type must be one of 1) sm_mnist, 2) \
                             kth_action, or 3) bair_robot_pushing. Invalid model \
                             type: ' + model_type + '.')
 
+        # construct the latent level
         if self.modified:
-            # use a recurrent latent level
-            raise NotImplementedError
+            # use a fully-connected latent level
+            self.latent_error_enc = FullyConnectedNetwork(latent_error_enc_config)
         else:
             # use a recurrent latent level
             self.latent_levels = nn.ModuleList([LSTMLatentLevel(level_config)])
@@ -89,8 +144,8 @@ class SVG(LatentVariableModel):
                                          'n_in': 128 + latent_config['n_variables']})
         self.decoder_lstm_output = FullyConnectedLayer({'n_in': 256, 'n_out': 128,
                                                         'non_linearity': 'tanh'})
-        self.output_dist = Normal()
-        self.output_dist.log_var = nn.Parameter(torch.zeros(32, 1, 3, 64, 64))
+
+
         self.output_interval = 1./256
 
     def _get_encoding_form(self, observation):

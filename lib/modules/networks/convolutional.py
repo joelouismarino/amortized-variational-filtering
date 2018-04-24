@@ -5,28 +5,75 @@ from network import Network
 
 
 class ConvolutionalNetwork(Network):
+    """
+    Convolutional neural network.
 
-    """Multi-layer convolutional network."""
+    Args:
+        network_config (dict): dictionary containing network configuration parameters,
+                               keys should include n_in, n_filters, filter_size,
+                               n_layers, non_linearity, connection_type, batch_norm,
+                               weight_norm, dropout
+    """
+    def __init__(self, network_config):
+        super(ConvolutionalNetwork, self).__init__(network_config)
+        self._construct(network_config)
 
-    def __init__(self, n_in, n_filters, filter_size, n_layers, non_linearity=None,
-                connection_type='sequential', batch_norm=False, weight_norm=False, dropout=0.):
-        super(ConvolutionalNetwork, self).__init__()
-        assert connection_type in ['sequential', 'residual', 'highway', 'concat_input', 'concat'], 'Connection type not found.'
-        self.connection_type = connection_type
+    def _construct(self, network_config):
+        """
+        Method to construct the network from the network_config dictionary parameters.
+        """
         self.layers = nn.ModuleList([])
         self.gates = nn.ModuleList([])
-
-        n_in_orig = n_in
+        if 'connection_type' in network_config:
+            connection_types = ['sequential', 'residual', 'highway', 'concat_input', 'concat']
+            assert network_config['connection_type'] in connection_types, 'Connection type not found.'
+            self.connection_type = network_config['connection_type']
+        else:
+            self.connection_type = 'sequential'
+        n_in = network_config['n_in']
+        n_in_orig = network_config['n_in']
+        n_filters = network_config['n_filters']
+        filter_size = network_config['filter_size']
+        batch_norm = False
+        if 'batch_norm' in network_config:
+            if network_config['batch_norm']:
+                batch_norm = True
+        weight_norm = False
+        if 'weight_norm' in network_config:
+            if network_config['weight_norm']:
+                weight_norm = True
+        non_linearity = 'linear'
+        if 'non_linearity' in network_config:
+            non_linearity = network_config['non_linearity']
+        dropout = None
+        if 'dropout' in network_config:
+            dropout = network_config['dropout']
+        output_size = 0
 
         if self.connection_type in ['residual', 'highway']:
-            self.initial_conv = Convolutional(n_in, n_filters, filter_size, batch_norm=batch_norm, weight_norm=weight_norm)
+            self.initial_conv = ConvolutionalLayer({'n_in': n_in,
+                                                    'n_filters': n_filters,
+                                                    'filter_size': filter_size,
+                                                    'batch_norm': batch_norm,
+                                                    'weight_norm': weight_norm})
 
-        for _ in range(n_layers):
-            layer = Convolutional(n_in, n_filters, filter_size, non_linearity=non_linearity, batch_norm=batch_norm, weight_norm=weight_norm, dropout=dropout)
+        for _ in range(network_config['n_layers']):
+            layer = ConvolutionalLayer({'n_in': n_in,
+                                        'n_filters': n_filters,
+                                        'filter_size': filter_size,
+                                        'non_linearity': non_linearity,
+                                        'batch_norm': batch_norm,
+                                        'weight_norm': weight_norm,
+                                        'dropout': dropout})
             self.layers.append(layer)
 
             if self.connection_type == 'highway':
-                gate = Convolutional(n_in, n_filters, filter_size, non_linearity='sigmoid', batch_norm=batch_norm, weight_norm=weight_norm)
+                gate = ConvolutionalLayer({'n_in': n_in,
+                                            'n_filters': n_filters,
+                                            'filter_size': filter_size,
+                                            'non_linearity': 'sigmoid',
+                                            'batch_norm': batch_norm,
+                                            'weight_norm': weight_norm})
                 self.gates.append(gate)
 
             if self.connection_type in ['sequential', 'residual', 'highway']:
@@ -35,6 +82,8 @@ class ConvolutionalNetwork(Network):
                 n_in = n_filters + n_in_orig
             elif self.connection_type == 'concat':
                 n_in += n_filters
+            output_size = n_in
+        self.n_out = output_size
 
     def forward(self, input):
 

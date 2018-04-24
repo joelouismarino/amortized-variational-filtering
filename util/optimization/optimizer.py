@@ -1,3 +1,4 @@
+import torch
 import torch.optim as opt
 from torch.autograd import Variable
 
@@ -20,6 +21,9 @@ class Optimizer(object):
         elif opt_name == 'adam':
             optimizer = opt.Adam
         self.parameters = list(parameters)
+        if self.parameters == []:
+            # in case we're not using the optimizer
+            self.parameters = [Variable(torch.zeros(1), requires_grad=True)]
         self.opt = optimizer(self.parameters, lr=lr)
         self.stored_grads = None
         self.zero_stored_grad()
@@ -42,6 +46,8 @@ class Optimizer(object):
             param.grad = self.stored_grads[ind] / self._n_iter
         self.opt.step()
         self._n_iter = 0
+        self.zero_stored_grad()
+        self.zero_current_grad()
 
     def step_iter(self, n_steps=1):
         """
