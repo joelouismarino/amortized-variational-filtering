@@ -65,9 +65,14 @@ class LatentVariable(nn.Module):
         if analytical:
             # analytical KL divergence currently only defined for Gaussians
             assert type(self.approx_post) == type(self.prior) == Normal
-            var_ratio = self.approx_post.log_var.exp() / (self.prior.log_var.exp() + 1e-5)
-            t1 = (self.approx_post.mean - self.prior.mean).pow(2) / (self.prior.log_var.exp() + 1e-5)
-            return 0.5 * (var_ratio + t1 - 1 - var_ratio.log())
+            post_mean = self.approx_post.mean
+            post_log_var = self.approx_post.log_var
+            if len(post_mean.data.shape) in [2, 4]:
+                post_mean = post_mean.unsqueeze(1)
+                post_log_var = post_log_var.unsqueeze(1)
+            var_ratio = post_log_var.exp() / (self.prior.log_var.exp())
+            t1 = (post_mean - self.prior.mean).pow(2) / (self.prior.log_var.exp())
+            return 0.5 * (var_ratio + t1 - 1 - (var_ratio + 1e-7).log())
         else:
             # numerically estimated KL divergence
             z = self.approx_post.sample()

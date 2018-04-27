@@ -109,7 +109,7 @@ class LatentVariableModel(nn.Module):
 
         return log_prob
 
-    def free_energy(self, observation, averaged=True):
+    def free_energy(self, observation, averaged=True, anneal_weight=1.):
         """
         Estimate the free energy.
 
@@ -119,13 +119,13 @@ class LatentVariableModel(nn.Module):
         """
         cond_log_like = self.conditional_log_likelihoods(observation, averaged=False)
         kl = sum(self.kl_divergences(averaged=False))
-        free_energy = - (cond_log_like - kl)
+        free_energy = - (cond_log_like - anneal_weight * kl)
         if averaged:
             return free_energy.mean(dim=0)
         else:
             return free_energy
 
-    def losses(self, observation, averaged=True):
+    def losses(self, observation, averaged=True, anneal_weight=1.):
         """
         Estimate all losses.
 
@@ -135,7 +135,7 @@ class LatentVariableModel(nn.Module):
         """
         cond_log_like = self.conditional_log_likelihoods(observation, averaged=False)
         kl = self.kl_divergences(averaged=False)
-        free_energy = -(cond_log_like - sum(kl))
+        free_energy = -(cond_log_like - anneal_weight * sum(kl))
         if averaged:
             return free_energy.mean(dim=0), cond_log_like.mean(dim=0), [level_kl.mean(dim=0) for level_kl in kl]
         else:

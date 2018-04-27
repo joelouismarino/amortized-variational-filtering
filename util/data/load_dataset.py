@@ -237,14 +237,16 @@ def load_dataset(data_config, run_config):
             shutil.rmtree(os.path.join(data_path, 'bair_robot_pushing', 'softmotion30_44k'))
             print('Done.')
 
+        # TODO: make a val set for BAIR, needs to be done in the convert function
+
         from datasets import BAIRRobotPushing
         train_trans = trans.Compose([trans.RandomHorizontalFlip(),
                                      trans.Resize(data_config['img_size']),
-                                     trans.RandomSequenceCrop(data_config['sequence_length']+1),
+                                     trans.RandomSequenceCrop(data_config['sequence_length']),
                                      trans.ImageToTensor(),
                                      trans.ConcatSequence()])
         test_trans = trans.Compose([trans.Resize(data_config['img_size']),
-                                    trans.RandomSequenceCrop(data_config['sequence_length']+1),
+                                    trans.RandomSequenceCrop(data_config['sequence_length']),
                                     trans.ImageToTensor(),
                                     trans.ConcatSequence()])
         train = BAIRRobotPushing(os.path.join(data_path, 'bair_robot_pushing', 'train'), train_trans)

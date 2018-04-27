@@ -19,8 +19,14 @@ class LSTMLatentLevel(LatentLevel):
         """
         Method to construct the latent level from the level_config dictionary
         """
-        self.inference_model = LSTMNetwork(level_config['inference_config'])
-        self.generative_model = LSTMNetwork(level_config['generative_config'])
+        if level_config['inference_config'] is not None:
+            self.inference_model = LSTMNetwork(level_config['inference_config'])
+        else:
+            self.inference_model = lambda x:x
+        if level_config['generative_config'] is not None:
+            self.generative_model = LSTMNetwork(level_config['generative_config'])
+        else:
+            self.generative_model = lambda x:x
         self.latent = FullyConnectedLatentVariable(level_config['latent_config'])
         self.inference_procedure = level_config['inference_procedure']
 
@@ -64,8 +70,10 @@ class LSTMLatentLevel(LatentLevel):
         Method to step the latent level forward in the sequence.
         """
         self.latent.step()
-        self.inference_model.step()
-        self.generative_model.step()
+        if 'step' in dir(self.inference_model):
+            self.inference_model.step()
+        if 'step' in dir(self.generative_model):
+            self.generative_model.step()
 
     def re_init(self):
         """
@@ -73,15 +81,18 @@ class LSTMLatentLevel(LatentLevel):
         variables in the generative / inference procedures).
         """
         self.latent.re_init()
-        self.inference_model.re_init()
-        self.generative_model.re_init()
+        if 're_init' in dir(self.inference_model):
+            self.inference_model.re_init()
+        if 're_init' in dir(self.generative_model):
+            self.generative_model.re_init()
 
     def inference_parameters(self):
         """
         Method to obtain inference parameters.
         """
         params = nn.ParameterList()
-        params.extend(list(self.inference_model.parameters()))
+        if 'parameters' in dir(self.inference_model):
+            params.extend(list(self.inference_model.parameters()))
         params.extend(list(self.latent.inference_parameters()))
         return params
 
@@ -90,6 +101,7 @@ class LSTMLatentLevel(LatentLevel):
         Method to obtain generative parameters.
         """
         params = nn.ParameterList()
-        params.extend(list(self.generative_model.parameters()))
+        if 'parameters' in dir(self.generative_model):
+            params.extend(list(self.generative_model.parameters()))
         params.extend(list(self.latent.generative_parameters()))
         return params

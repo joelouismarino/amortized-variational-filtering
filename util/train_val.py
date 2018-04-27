@@ -1,6 +1,9 @@
 from torch.autograd import Variable
-from config import run_config, data_config
+from config import run_config, train_config, data_config
 import numpy as np
+
+global epoch
+epoch = 0
 
 
 def train(data, model, optimizers):
@@ -27,10 +30,20 @@ def run(data, model, optimizers=None):
         optimizers (optional, tuple): inference and generative optimizers respectively
     """
     if optimizers:
+        global epoch
         inf_opt, gen_opt = optimizers
         model.train()
+        if train_config['kl_annealing_epochs'] > 0:
+            if epoch < train_config['kl_annealing_epochs']:
+                anneal_weight = epoch * 1. / train_config['kl_annealing_epochs']
+            else:
+                anneal_weight = 1.
+        else:
+            anneal_weight = 1.
+        epoch += 1
     else:
         model.eval()
+        anneal_weight = 1.
 
     out_dict = {}
     n_batches = len(data)
@@ -87,8 +100,7 @@ def run(data, model, optimizers=None):
             model.generate()
 
             # evaluate the free energy to get gradients, errors
-            # model.free_energy(step_batch).backward(retain_graph=True)
-            free_energy, cond_log_like, kl = model.losses(step_batch, averaged=False)
+            free_energy, cond_log_like, kl = model.losses(step_batch, averaged=False, anneal_weight=anneal_weight)
             free_energy.mean(dim=0).backward(retain_graph=True)
 
             step_free_energy[:, 0, step_ind]    = free_energy.data.cpu().numpy()
@@ -107,8 +119,7 @@ def run(data, model, optimizers=None):
                 model.generate()
 
                 # evaluate the free energy to get gradients, errors
-                # model.free_energy(step_batch).backward(retain_graph=True)
-                free_energy, cond_log_like, kl = model.losses(step_batch, averaged=False)
+                free_energy, cond_log_like, kl = model.losses(step_batch, averaged=False, anneal_weight=anneal_weight)
                 free_energy.mean(dim=0).backward(retain_graph=True)
 
                 step_free_energy[:, inf_it+1, step_ind]    = free_energy.data.cpu().numpy()
@@ -117,6 +128,11 @@ def run(data, model, optimizers=None):
                 step_output_log_var[:, inf_it+1, step_ind] = model.output_dist.log_var.mean(dim=2).mean(dim=1).data.cpu().numpy()
                 step_mean_grad[:, inf_it+1, step_ind]      = model.latent_levels[0].latent.approx_posterior_gradients()[0].abs().mean(dim=1).data.cpu().numpy()
                 step_log_var_grad[:, inf_it+1, step_ind]   = model.latent_levels[0].latent.approx_posterior_gradients()[1].abs().mean(dim=1).data.cpu().numpy()
+
+                if np.isnan(step_free_energy[:, inf_it+1, step_ind].mean()):
+                    # if nan is encountered, stop training
+                    print('nan encountered during training.')
+                    import ipdb; ipdb.set_trace()
 
             if optimizers:
                 # collect the inference model gradients into the stored gradients
@@ -135,13 +151,7 @@ def run(data, model, optimizers=None):
             model.generate()
 
             # evaluate the free energy, add to total
-            total_free_energy += model.free_energy(step_batch)
-            # free_energy, cond_log_like, kl = model.losses(step_batch, averaged=False)
-            # total_free_energy += free_energy.mean(dim=0)
-
-            # step_free_energy[:, step_ind]   = free_energy.data.cpu().numpy()
-            # step_cond_log_like[:, step_ind] = cond_log_like.data.cpu().numpy()
-            # step_kl_div[:, step_ind]        = kl[0].data.cpu().numpy()
+            total_free_energy += model.free_energy(step_batch, anneal_weight=anneal_weight)
 
             total_reconstruction[step_ind] = model.output_dist.mean.data.cpu().numpy()[:, 0]
 

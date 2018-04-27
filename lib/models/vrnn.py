@@ -98,7 +98,7 @@ class VRNN(LatentVariableModel):
                 else:
                     raise NotImplementedError
 
-                inf_config = {'n_in': input_dim, 'n_units': encoder_units,
+                inf_config = {'n_in': input_dim, 'n_units': 2 * encoder_units,
                               'n_layers': hidden_layers, 'non_linearity': 'relu'}
                 # inf_config['connection_type'] = 'concat_input'
                 inf_config['connection_type'] = 'highway'
@@ -117,7 +117,7 @@ class VRNN(LatentVariableModel):
                       'n_layers': hidden_layers, 'non_linearity': 'relu'}
         level_config['generative_config'] = gen_config
         latent_config['n_variables'] = z_dim
-        latent_config['n_in'] = (encoder_units, prior_units)
+        latent_config['n_in'] = (2 * encoder_units, prior_units)
         # latent_config['n_in'] = (encoder_units+input_dim, prior_units)
         level_config['latent_config'] = latent_config
         latent = FullyConnectedLatentLevel(level_config)
@@ -149,37 +149,72 @@ class VRNN(LatentVariableModel):
         """
         if self.inference_procedure == 'direct':
             return observation
+
         elif self.inference_procedure == 'gradient':
             grads = self.latent_levels[0].latent.approx_posterior_gradients()
-            # normalize
-            for ind, grad in enumerate(grads):
-                mean = grad.mean(dim=0, keepdim=True)
-                std = grad.std(dim=0, keepdim=True)
-                grads[ind] = (grad - mean) / (std + 1e-5)
-            # concatenate
+
+            # normalization
+            if self.model_config['input_normalization'] in ['layer', 'batch']:
+                norm_dim = 0 if self.model_config['input_normalization'] == 'batch' else 1
+                for ind, grad in enumerate(grads):
+                    mean = grad.mean(dim=norm_dim, keepdim=True)
+                    std = grad.std(dim=norm_dim, keepdim=True)
+                    grads[ind] = (grad - mean) / (std + 1e-7)
             grads = torch.cat(grads, dim=1)
-            params = torch.cat(self.latent_levels[0].latent.approx_posterior_parameters(), dim=1)
+
+            # concatenate with the parameters
+            params = self.latent_levels[0].latent.approx_posterior_parameters()
+            if self.model_config['norm_parameters']:
+                if self.model_config['input_normalization'] in ['layer', 'batch']:
+                    norm_dim = 0 if self.model_config['input_normalization'] == 'batch' else 1
+                    for ind, param in enumerate(params):
+                        mean = param.mean(dim=norm_dim, keepdim=True)
+                        std = param.std(dim=norm_dim, keepdim=True)
+                        params[ind] = (param - mean) / (std + 1e-7)
+            params = torch.cat(params, dim=1)
+
             grads_params = torch.cat([grads, params], dim=1)
+
+            # concatenate with the observation
             if self.model_config['concat_observation']:
                 grads_params = torch.cat([grads_params, observation], dim=1)
+
             return grads_params
+
         elif self.inference_procedure == 'error':
             errors = [self._output_error(observation), self.latent_levels[0].latent.error()]
-            # normalize
-            for ind, error in enumerate(errors):
-                mean = error.mean(dim=0, keepdim=True)
-                std = error.std(dim=0, keepdim=True)
-                errors[ind] = (error - mean) / (std + 1e-5)
-            # concatenate
+
+            # normalization
+            if self.model_config['input_normalization'] in ['layer', 'batch']:
+                norm_dim = 0 if self.model_config['input_normalization'] == 'batch' else 1
+                for ind, error in enumerate(errors):
+                    mean = error.mean(dim=0, keepdim=True)
+                    std = error.std(dim=0, keepdim=True)
+                    errors[ind] = (error - mean) / (std + 1e-7)
             errors = torch.cat(errors, dim=1)
-            params = torch.cat(self.latent_levels[0].latent.approx_posterior_parameters(), dim=1)
+
+            # concatenate with the parameters
+            params = self.latent_levels[0].latent.approx_posterior_parameters()
+            if self.model_config['norm_parameters']:
+                if self.model_config['input_normalization'] in ['layer', 'batch']:
+                    norm_dim = 0 if self.model_config['input_normalization'] == 'batch' else 1
+                    for ind, param in enumerate(params):
+                        mean = param.mean(dim=norm_dim, keepdim=True)
+                        std = param.std(dim=norm_dim, keepdim=True)
+                        params[ind] = (param - mean) / (std + 1e-7)
+            params = torch.cat(params, dim=1)
+
             error_params = torch.cat([errors, params], dim=1)
+
             if self.model_config['concat_observation']:
-                error_params = torch.cat([errors_params, observation], dim=1)
+                error_params = torch.cat([error_params, observation], dim=1)
+
             return error_params
+
         elif self.inference_procedure == 'sgd':
             grads = self.latent_levels[0].latent.approx_posterior_gradients()
             return grads
+
         else:
             raise NotImplementedError
 
@@ -232,17 +267,28 @@ class VRNN(LatentVariableModel):
         # possibly detach the hidden state, preventing backprop
         prev_h = self._prev_h.unsqueeze(1)
         prev_h = prev_h.detach() if self._detach_h else prev_h
+
+        # generate the prior
         z = self.latent_levels[0].generate(prev_h, gen=gen, n_samples=n_samples)
-        self._z_enc = self.z_model(z)
+
+        # transform z through the z model
+        b, s, _ = z.data.shape
+        self._z_enc = self.z_model(z.view(b*s, -1)).view(b, s, -1)
+
+        # pass encoded z and previous h through the decoder model
         dec = torch.cat([self._z_enc, prev_h], dim=2)
-        output = self.decoder_model(dec)
+        b, s, _ = dec.data.shape
+        output = self.decoder_model(dec.view(b*s, -1)).view(b, s, -1)
+
+        # get the output mean and log variance
         self.output_dist.mean = self.output_mean(output)
         if self.model_config['global_output_log_var']:
-            bs, s = output.data.shape[0], output.data.shape[1]
-            log_var = self.output_log_var.view(1, 1, -1).repeat(bs, s, 1)
+            b, s = output.data.shape[0], output.data.shape[1]
+            log_var = self.output_log_var.view(1, 1, -1).repeat(b, s, 1)
             self.output_dist.log_var = torch.clamp(log_var, min=-10)
         else:
             self.output_dist.log_var = torch.clamp(self.output_log_var(output), min=-10.)
+
         return self.output_dist.sample()
 
     def step(self, n_samples=1):
@@ -251,9 +297,10 @@ class VRNN(LatentVariableModel):
         """
         # TODO: handle sampling dimension
         self._prev_h = self.lstm(torch.cat([self._x_enc, self._z_enc[:, 0]], dim=1))
+        prev_h = self._prev_h.unsqueeze(1)
         self.lstm.step()
         # get the prior, use it to initialize the approximate posterior
-        self.latent_levels[0].generate(self._prev_h.unsqueeze(1), gen=True, n_samples=n_samples)
+        self.latent_levels[0].generate(prev_h, gen=True, n_samples=n_samples)
         self.latent_levels[0].latent.re_init_approx_posterior()
 
     def re_init(self, input):
@@ -261,11 +308,14 @@ class VRNN(LatentVariableModel):
         Method for reinitializing the state (approximate posterior and priors)
         of the dynamical latent variable model.
         """
+        # re-initialize the LSTM hidden and cell states
         self.lstm.re_init(input)
+        # set the previous hidden state, add sample dimension
         self._prev_h = self.lstm.layers[0].hidden_state
         prev_h = self._prev_h.unsqueeze(1)
+        # get the prior, use it to initialize the approximate posterior
         self.latent_levels[0].generate(prev_h, gen=True, n_samples=1)
-        self.latent_levels[0].re_init()
+        self.latent_levels[0].latent.re_init_approx_posterior()
 
     def inference_parameters(self):
         """

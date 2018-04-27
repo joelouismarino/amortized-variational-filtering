@@ -32,7 +32,7 @@ class LSTMLayer(Layer):
         self.hidden_state = self._hidden_state = None
         self.cell_state = self._cell_state = None
 
-    def forward(self, input):
+    def forward(self, input, detach=False):
         """
         Method to perform forward computation.
         """
@@ -42,8 +42,11 @@ class LSTMLayer(Layer):
         if self.cell_state is None:
             # re-initialize the cell state
             self.cell_state = self.initial_cell.repeat(input.data.shape[0], 1)
+        # detach the hidden and cell states if necessary
+        hs = self.hidden_state.detach() if detach else self.hidden_state
+        cs = self.cell_state.detach() if detach else self.cell_state
         # perform forward computation
-        self._hidden_state, self._cell_state = self.lstm.forward(input, (self.hidden_state, self.cell_state))
+        self._hidden_state, self._cell_state = self.lstm.forward(input, (hs, cs))
         return self._hidden_state
 
     def step(self):

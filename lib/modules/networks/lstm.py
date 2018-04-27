@@ -52,13 +52,13 @@ class LSTMNetwork(Network):
                 n_in += n_units
             output_size = n_in
 
-    def forward(self, input):
+    def forward(self, input, detach=False):
         """
         Method for forward computation.
         """
         input_orig = input.clone()
         for layer_num, layer in enumerate(self.layers):
-            layer_output = layer(input)
+            layer_output = layer(input, detach)
             if self.connection_type == 'sequential':
                 input = layer_output
             elif self.connection_type == 'residual':
