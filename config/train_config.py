@@ -1,6 +1,10 @@
 train_config = {
+    'batch_size': 16,
+    'inference_iterations': 1,
+    'sequence_samples': 1,
+    'step_samples': 1,
     'optimizer': 'adam',
     'inference_learning_rate': 0.0001,
     'generation_learning_rate': 0.0001,
-    'kl_annealing_epochs': 50,
+    'kl_annealing_epochs': 0,
 }

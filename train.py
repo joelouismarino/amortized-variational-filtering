@@ -19,7 +19,7 @@ logger = Logger(run_config)
 plotter = Plotter(logger.log_dir)
 
 # load the data
-train_data, val_data, test_data = load_data(data_config, run_config)
+train_data, val_data, test_data = load_data(data_config, train_config['batch_size'])
 
 # load the model, optimizers
 print('Loading model...')

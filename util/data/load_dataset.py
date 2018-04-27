@@ -6,12 +6,11 @@ from zipfile import ZipFile
 from misc_data_util.url_save import save
 
 
-def load_dataset(data_config, run_config):
+def load_dataset(data_config):
     """
     Downloads and loads a variety of standard benchmark sequence datasets.
     Arguments:
         data_config (dict): dictionary containing data configuration arguments
-        run_config (dict): dictionary containing run configuration arguments
     Returns:
         tuple of (train, val, test), each of which is a PyTorch dataset.
     """

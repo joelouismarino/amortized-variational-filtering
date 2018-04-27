@@ -1,8 +1,8 @@
 data_config = {
     'data_path': '/media/joe/SSD/datasets/',
-    'dataset_name': 'timit',
-    'data_type': 'audio', # video, audio, other
-    'sequence_length': 40,
+    'dataset_name': 'bair_robot_pushing',
+    'data_type': 'video', # video, audio, other
+    'sequence_length': 13,
 }
 
 if data_config['data_type'] == 'video':

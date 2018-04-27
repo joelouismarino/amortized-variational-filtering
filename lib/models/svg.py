@@ -33,15 +33,16 @@ class SVG(LatentVariableModel):
         level_config = {}
         latent_config = {}
 
-        latent_config['n_in'] = (256, 256) # number of encoder, decoder units
         latent_config['inference_procedure'] = self.inference_procedure
          # hard coded because we handle inference here in the model
         level_config['inference_procedure'] = 'direct'
 
         if not self.modified:
             level_config['inference_config'] = {'n_layers': 1, 'n_units': 256, 'n_in': 128}
+            latent_config['n_in'] = (256, 256) # number of encoder, decoder units
         else:
             level_config['inference_config'] = None
+            latent_config['n_in'] = [None, 256] # number of encoder, decoder units
         level_config['generative_config'] = None
 
         if model_type == 'sm_mnist':
@@ -51,7 +52,6 @@ class SVG(LatentVariableModel):
             self.decoder = decoder(128, self.n_input_channels)
             self.output_dist = Bernoulli()
             latent_config['n_variables'] = 10
-            level_config['latent_config'] = latent_config
             if self.modified:
                 if self.inference_procedure == 'direct':
                     pass
@@ -74,7 +74,6 @@ class SVG(LatentVariableModel):
             self.decoder = decoder(128, output_channels)
             self.output_dist = Normal()
             latent_config['n_variables'] = 32
-            level_config['latent_config'] = latent_config
             if self.modified:
                 if self.inference_procedure == 'direct':
                     pass
@@ -97,7 +96,6 @@ class SVG(LatentVariableModel):
             self.decoder = decoder(128, output_channels)
             self.output_dist = Normal()
             latent_config['n_variables'] = 64
-            level_config['latent_config'] = latent_config
             if self.modified:
                 if self.inference_procedure == 'direct':
                     # another convolutional encoder
@@ -108,6 +106,7 @@ class SVG(LatentVariableModel):
                                   'n_in': 128,
                                   'non_linearity': 'relu'}
                     self.inf_model = FullyConnectedNetwork(inf_config)
+                    latent_config['n_in'][0] = 256
                 elif self.inference_procedure == 'gradient':
                     # fully-connected encoder / latent inference model
                     inf_config = {'n_layers': 3,
@@ -117,6 +116,7 @@ class SVG(LatentVariableModel):
                     if model_config['concat_observation']:
                         inf_config['n_in'] += (self.n_input_channels * 64 * 64)
                     self.inf_model = FullyConnectedNetwork(inf_config)
+                    latent_config['n_in'][0] = 1024
                 elif self.inference_procedure == 'error':
                     # convolutional observation error encoder
                     obs_error_enc_config = {'n_layers': 3,
@@ -135,6 +135,7 @@ class SVG(LatentVariableModel):
                     if model_config['concat_observation']:
                         inf_config['n_in'] += (self.n_input_channels * 64 * 64)
                     self.inf_model = FullyConnectedNetwork(inf_config)
+                    latent_config['n_in'][0] = 1024
                 else:
                     raise NotImplementedError
         else:
@@ -143,6 +144,7 @@ class SVG(LatentVariableModel):
                             type: ' + model_type + '.')
 
         # construct a recurrent latent level
+        level_config['latent_config'] = latent_config
         self.latent_levels = nn.ModuleList([LSTMLatentLevel(level_config)])
 
         self.prior_lstm = LSTMNetwork({'n_layers': 1, 'n_units': 256, 'n_in': 128})
@@ -162,21 +164,40 @@ class SVG(LatentVariableModel):
         """
         if self.inference_procedure == 'direct':
             return observation - 0.5
+
         if self.inference_procedure == 'gradient':
             grads = self.latent_levels[0].latent.approx_posterior_gradients()
-            # normalize
-            for ind, grad in enumerate(grads):
-                mean = grad.mean(dim=0, keepdim=True)
-                std = grad.std(dim=0, keepdim=True)
-                grads[ind] = (grad - mean) / (std + 1e-5)
-            # concatenate
+
+            # normalization
+            if self.model_config['input_normalization'] in ['layer', 'batch']:
+                norm_dim = 0 if self.model_config['input_normalization'] == 'batch' else 1
+                for ind, grad in enumerate(grads):
+                    mean = grad.mean(dim=norm_dim, keepdim=True)
+                    std = grad.std(dim=norm_dim, keepdim=True)
+                    grads[ind] = (grad - mean) / (std + 1e-7)
             grads = torch.cat(grads, dim=1)
-            params = torch.cat(self.latent_levels[0].latent.approx_posterior_parameters(), dim=1)
+
+            # concatenate with the parameters
+            params = self.latent_levels[0].latent.approx_posterior_parameters()
+            if self.model_config['norm_parameters']:
+                if self.model_config['input_normalization'] in ['layer', 'batch']:
+                    norm_dim = 0 if self.model_config['input_normalization'] == 'batch' else 1
+                    for ind, param in enumerate(params):
+                        mean = param.mean(dim=norm_dim, keepdim=True)
+                        std = param.std(dim=norm_dim, keepdim=True)
+                        params[ind] = (param - mean) / (std + 1e-7)
+            params = torch.cat(params, dim=1)
+
             grads_params = torch.cat([grads, params], dim=1)
+
+            # concatenate with the observation
             if self.model_config['concat_observation']:
                 grads_params = torch.cat([grads_params, observation], dim=1)
+
             return grads_params
+
         elif self.inference_procedure == 'error':
+            # TODO: figure out proper normalization for observation error
             errors = [self._output_error(observation), self.latent_levels[0].latent.error()]
             # normalize
             for ind, error in enumerate(errors):
@@ -224,6 +245,7 @@ class SVG(LatentVariableModel):
             if not self._obs_encoded:
                 # encode the observation (to be used at the next time step)
                 self._h, self._skip = self.encoder(observation - 0.5)
+                self._obs_encoded = True
 
             enc = self._get_encoding_form(observation)
 
@@ -267,7 +289,7 @@ class SVG(LatentVariableModel):
         prev_h = self._prev_h.unsqueeze(1)
         prev_skip = [_prev_skip.repeat(n_samples, 1, 1, 1) for _prev_skip in self._prev_skip]
 
-        # detach h and skip if necessary
+        # detach prev_h and prev_skip if necessary
         if self._detach_h:
             prev_h = prev_h.detach()
             prev_skip = [_prev_skip.detach() for _prev_skip in prev_skip]
@@ -333,12 +355,12 @@ class SVG(LatentVariableModel):
         self._obs_encoded = False
         # re-initialize the lstms and distributions
         self.latent_levels[0].re_init()
-        self.prior_lstm.re_init()
-        self.decoder_lstm.re_init()
+        self.prior_lstm.re_init(input)
+        self.decoder_lstm.re_init(input)
         # clear the hidden state and skip
         self._h = self._skip = None
         # encode this input to set the previous h and skip
-        self._prev_h, self._prev_skip = self.encoder(input-0.5)
+        self._prev_h, self._prev_skip = self.encoder(input - 0.5)
         # set the prior and approximate posterior
         self._gen_input = self.prior_lstm(self._prev_h, detach=False)
         self.latent_levels[0].generate(self._gen_input.unsqueeze(1), gen=True, n_samples=1)

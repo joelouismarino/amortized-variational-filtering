@@ -60,6 +60,8 @@ class LSTMLayer(Layer):
         """
         Method to reinitialize the hidden state and cell state within the layer.
         """
+        self._hidden_state = None
+        self._cell_state = None
         if input is not None:
             self.hidden_state = self.initial_hidden.repeat(input.data.shape[0], 1)
             self.cell_state = self.initial_cell.repeat(input.data.shape[0], 1)
