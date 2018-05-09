@@ -26,7 +26,7 @@ class KTHActions(Dataset):
         img_names = os.listdir(os.path.join(self.path, self.video_list[ind]))
         img_names = [img_name.split('.')[0] for img_name in img_names]
         img_names.sort(key=float)
-        imgs = [Image.open(os.path.join(self.path, self.video_list[ind], i + '.png')) for i in img_names]
+        imgs = [Image.open(os.path.join(self.path, self.video_list[ind], i + '.png')).convert('L') for i in img_names]
         if self.transform is not None:
             # apply the image/video transforms
             imgs = self.transform(imgs)

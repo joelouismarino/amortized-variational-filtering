@@ -147,7 +147,7 @@ def run(data, model, optimizers=None):
                 inf_opt.step_iter(n_inf_iter)
                 gen_opt.step_iter()
 
-                if True:
+                if train_config['optimize_inf_online']:
                     inf_opt.step()
 
             # set the mode to generation
@@ -187,7 +187,8 @@ def run(data, model, optimizers=None):
             print(gen_opt._n_iter)
 
             # apply the gradients to the inference and generative models
-            # inf_opt.step()
+            if not train_config['optimize_inf_online']:
+                inf_opt.step()
             gen_opt.step()
 
         out_dict['free_energy'][batch_ind]   = step_free_energy.mean(axis=0)

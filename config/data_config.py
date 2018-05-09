@@ -1,15 +1,15 @@
 data_config = {
     'data_path': '/media/joe/SSD/datasets/',
-    'dataset_name': 'bair_robot_pushing',
+    'dataset_name': 'kth_actions',
     'data_type': 'video', # video, audio, other
-    'sequence_length': 13,
+    'sequence_length': 21,
 }
 
 if data_config['data_type'] == 'video':
+    data_config['crop_size'] = [64, 64]
     data_config['img_size'] = [64, 64]
-    data_config['img_hz_flip'] = True
+    data_config['img_hz_flip'] = False
     data_config['img_rotation'] = 0
-    data_config['img_crop'] = [64, 64]
 
 if data_config['data_type'] == 'audio':
     data_config['window'] = 200

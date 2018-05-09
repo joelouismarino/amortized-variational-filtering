@@ -98,16 +98,16 @@ class VRNN(LatentVariableModel):
                 else:
                     raise NotImplementedError
 
-                inf_config = {'n_in': input_dim, 'n_units': 2 * encoder_units,
-                              'n_layers': hidden_layers, 'non_linearity': 'relu'}
-                # inf_config['connection_type'] = 'concat_input'
+                encoder_units = 1024
+                inf_config = {'n_in': input_dim, 'n_units': encoder_units,
+                              'n_layers': 2, 'non_linearity': 'elu'}
                 inf_config['connection_type'] = 'highway'
                 # self.inf_model = FullyConnectedNetwork(inf_config)
             else:
                 inf_config = None
                 latent_config['inf_lr'] = model_config['learning_rate']
         else:
-            inf_input_units = x_units if self.modified else lstm_units + x_units
+            inf_input_units = lstm_units + x_units
             inf_config = {'n_in': inf_input_units, 'n_units': encoder_units,
                           'n_layers': hidden_layers, 'non_linearity': 'relu'}
 
@@ -117,7 +117,7 @@ class VRNN(LatentVariableModel):
                       'n_layers': hidden_layers, 'non_linearity': 'relu'}
         level_config['generative_config'] = gen_config
         latent_config['n_variables'] = z_dim
-        latent_config['n_in'] = (2 * encoder_units, prior_units)
+        latent_config['n_in'] = (encoder_units, prior_units)
         # latent_config['n_in'] = (encoder_units+input_dim, prior_units)
         level_config['latent_config'] = latent_config
         latent = FullyConnectedLatentLevel(level_config)
@@ -348,12 +348,11 @@ class VRNN(LatentVariableModel):
         Method to set the model's current mode to inference.
         """
         self.latent_levels[0].latent.detach = False
-        self._detach_h = True if not self.modified else False
+        self._detach_h = True
 
     def generative_mode(self):
         """
         Method to set the model's current mode to generation.
         """
-        inf = self.inference_procedure
         self.latent_levels[0].latent.detach = True
         self._detach_h = False

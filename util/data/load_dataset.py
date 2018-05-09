@@ -199,15 +199,15 @@ def load_dataset(data_config):
             print('Done.')
 
         from datasets import KTHActions
-        train_trans = trans.Compose([trans.RandomHorizontalFlip(),
-                                     trans.Resize(data_config['img_size']),
-                                     trans.RandomSequenceCrop(data_config['sequence_length']),
-                                     trans.ImageToTensor(),
-                                     trans.ConcatSequence()])
-        val_test_trans = trans.Compose([trans.Resize(data_config['img_size']),
-                                    trans.RandomSequenceCrop(data_config['sequence_length']),
-                                    trans.ImageToTensor(),
-                                    trans.ConcatSequence()])
+        train_transforms = []
+        if data_config['img_hz_flip']:
+            train_transforms.append(trans.RandomHorizontalFlip())
+        transforms = [trans.Resize(data_config['img_size']),
+                      trans.RandomSequenceCrop(data_config['sequence_length']),
+                      trans.ImageToTensor(),
+                      trans.ConcatSequence()]
+        train_trans = trans.Compose(train_transforms + transforms)
+        val_test_trans = trans.Compose(transforms)
         train = KTHActions(os.path.join(data_path, 'kth_actions', 'train'), train_trans)
         val   = KTHActions(os.path.join(data_path, 'kth_actions', 'val'), val_test_trans)
         test  = KTHActions(os.path.join(data_path, 'kth_actions', 'test'), val_test_trans)
@@ -239,15 +239,15 @@ def load_dataset(data_config):
         # TODO: make a val set for BAIR, needs to be done in the convert function
 
         from datasets import BAIRRobotPushing
-        train_trans = trans.Compose([trans.RandomHorizontalFlip(),
-                                     trans.Resize(data_config['img_size']),
-                                     trans.RandomSequenceCrop(data_config['sequence_length']),
-                                     trans.ImageToTensor(),
-                                     trans.ConcatSequence()])
-        test_trans = trans.Compose([trans.Resize(data_config['img_size']),
-                                    trans.RandomSequenceCrop(data_config['sequence_length']),
-                                    trans.ImageToTensor(),
-                                    trans.ConcatSequence()])
+        train_transforms = []
+        if data_config['img_hz_flip']:
+            train_transforms.append(trans.RandomHorizontalFlip())
+        transforms = [trans.Resize(data_config['img_size']),
+                      trans.RandomSequenceCrop(data_config['sequence_length']),
+                      trans.ImageToTensor(),
+                      trans.ConcatSequence()]
+        train_trans = trans.Compose(train_transforms + transforms)
+        test_trans = trans.Compose(transforms)
         train = BAIRRobotPushing(os.path.join(data_path, 'bair_robot_pushing', 'train'), train_trans)
         test  = BAIRRobotPushing(os.path.join(data_path, 'bair_robot_pushing', 'test'), test_trans)
 

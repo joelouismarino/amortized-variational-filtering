@@ -81,7 +81,7 @@ class Plotter(object):
         ########################################################################
         it_legend = []
         for split in ['Train', 'Val']:
-            for it_num in range(run_config['inference_iterations']+1):
+            for it_num in range(train_config['inference_iterations']+1):
                 it_legend.append(split + ', Iteration ' + str(it_num))
         handle_dict['mean_grad'] = plot_line(self.vis,
                                              nans.repeat(train_config['inference_iterations']+1, 1),
@@ -177,6 +177,7 @@ class Plotter(object):
         """
         free_energy, cond_log_like, kl_div = metrics
         # total metrics, evaluated at the end of inference,summed over all steps
+
         update_trace(self.vis, np.array([free_energy[-1].sum()]),
                      np.array([self.epoch]).astype(int),
                      win=self.handle_dict['fe'], name=train_val)

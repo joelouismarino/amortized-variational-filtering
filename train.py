@@ -20,6 +20,8 @@ plotter = Plotter(logger.log_dir)
 
 # load the data
 train_data, val_data, test_data = load_data(data_config, train_config['batch_size'])
+if val_data is None:
+    val_data = test_data
 
 # load the model, optimizers
 print('Loading model...')
@@ -36,8 +38,7 @@ model.cuda()
 
 while True:
     # training
-    # out = train(train_data, model, optimizers)
-    out = train(test_data, model, optimizers)
+    out = train(train_data, model, optimizers)
     logger.log(out, 'Train'); plotter.plot(out, 'Train')
     if val_data:
         # validation

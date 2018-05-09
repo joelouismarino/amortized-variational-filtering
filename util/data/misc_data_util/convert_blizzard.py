@@ -25,6 +25,23 @@ def get_files(folder, file_end):
             matches.append(os.path.join(root, filename))
     return matches
 
+def get_statistics(path):
+    # NOTE: this calculates the mean of the means and stds (incorrect)
+    npy_files = get_files(os.path.join(path, 'train'), '*.npy')
+
+    m = np.zeros(len(npy_files))
+    s = np.zeros(len(npy_files))
+
+    for i, f in enumerate(npy_files):
+        clip = np.load(f)
+        m[i] = np.mean(clip)
+        s[i] = np.std(clip)
+
+    m = m.mean()
+    s = s.mean()
+
+    cPickle.dump((m, s), open(os.path.join(path, 'statistics.p'), 'w'))
+
 def convert(data_path):
 
     # get all of the mp3 files
@@ -56,3 +73,5 @@ def convert(data_path):
             # write to corresponding directory
             clip_name = os.path.join(data_path, split, 'file_' + str(i) + '_clip_' + str(ind) + '.npy')
             np.save(clip_name, clip)
+
+    get_statistics(data_path)

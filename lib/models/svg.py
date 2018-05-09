@@ -76,11 +76,46 @@ class SVG(LatentVariableModel):
             latent_config['n_variables'] = 32
             if self.modified:
                 if self.inference_procedure == 'direct':
-                    pass
+                    # another convolutional encoder
+                    self.inf_encoder = encoder(128, self.n_input_channels)
+                    # fully-connected inference model
+                    inf_config = {'n_layers': 2,
+                                  'n_units': 256,
+                                  'n_in': 128,
+                                  'non_linearity': 'relu'}
+                    self.inf_model = FullyConnectedNetwork(inf_config)
+                    latent_config['n_in'][0] = 256
                 elif self.inference_procedure == 'gradient':
-                    pass
+                    # fully-connected encoder / latent inference model
+                    n_units = 1024
+                    inf_config = {'n_layers': 1,
+                                  'n_units': n_units,
+                                  'n_in': 4 * latent_config['n_variables'],
+                                  'non_linearity': 'elu',
+                                  'connection_type': 'highway'}
+                    if model_config['concat_observation']:
+                        inf_config['n_in'] += (self.n_input_channels * 64 * 64)
+                    self.inf_model = FullyConnectedNetwork(inf_config)
+                    latent_config['n_in'][0] = n_units
                 elif self.inference_procedure == 'error':
-                    pass
+                    # convolutional observation error encoder
+                    obs_error_enc_config = {'n_layers': 3,
+                                            'n_filters': 64,
+                                            'n_in': self.n_input_channels,
+                                            'filter_size': 3,
+                                            'non_linearity': 'relu'}
+                    if model_config['concat_observation']:
+                        obs_error_enc_config['n_in'] += self.n_input_channels
+                    self.obs_error_enc = ConvolutionalNetwork(obs_error_enc_config)
+                    # fully-connected error encoder (latent error + params + encoded observation errors)
+                    inf_config = {'n_layers': 3,
+                                  'n_units': 1024,
+                                  'n_in': 4 * latent_config['n_variables'],
+                                  'non_linearity': 'relu'}
+                    if model_config['concat_observation']:
+                        inf_config['n_in'] += (self.n_input_channels * 64 * 64)
+                    self.inf_model = FullyConnectedNetwork(inf_config)
+                    latent_config['n_in'][0] = 1024
                 else:
                     raise NotImplementedError
 
@@ -404,14 +439,14 @@ class SVG(LatentVariableModel):
 
     def inference_mode(self):
         """
-        Method to set the model's current mode.
+        Method to set the model's current mode to inference.
         """
         self.latent_levels[0].latent.detach = False
-        self._detach_h = True if self.modified else False
+        self._detach_h = True
 
     def generative_mode(self):
         """
-        Method to set the model's current mode.
+        Method to set the model's current mode to generation.
         """
         self.latent_levels[0].latent.detach = True
         self._detach_h = False

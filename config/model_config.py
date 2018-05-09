@@ -1,7 +1,7 @@
 model_config = {
     'architecture': 'svg',
-    'inference_procedure': 'gradient',
-    'modified': True,
+    'inference_procedure': 'direct',
+    'modified': False,
     'global_output_log_var': False,
 }
 
@@ -19,8 +19,8 @@ if model_config['inference_procedure'] == 'sgd':
 
 ## SVG
 if model_config['architecture'].lower() == 'svg':
-    model_config['model_type'] = 'bair_robot_pushing'
+    model_config['model_type'] = 'kth_actions'
 
 ## VRNN
 if model_config['architecture'].lower() == 'vrnn':
-    model_config['model_type'] = 'timit'
+    model_config['model_type'] = 'blizzard'

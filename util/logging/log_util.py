@@ -31,3 +31,17 @@ def update_metric(file_name, value):
         pickle.dump(metric, open(file_name, 'w'))
     else:
         pickle.dump([value], open(file_name, 'w'))
+
+
+def best_performance(free_energy, path):
+    # current performance
+    fe = free_energy[-1].sum()
+
+    # logged performance
+    metric = pickle.load(open(path, 'r'))
+    metric = [m[1][-1].sum() for m in metric]
+
+    # compare
+    if fe <= min(metric):
+        return True
+    return False

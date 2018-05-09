@@ -3,9 +3,9 @@ import numpy as np
 from torch.utils.data import Dataset
 
 
-class Blizzard(Dataset):
+class IAMOnDB(Dataset):
     """
-    A dataset class for the Blizzard dataset.
+    A dataset class for the IAM-OnDB dataset.
 
     Args:
         path (str): path to the directory containing the converted data files
@@ -17,7 +17,7 @@ class Blizzard(Dataset):
 
     def __getitem__(self, ind):
         f = self.file_list[ind]
-        item = np.load(os.path.join(self.path, f))
+        item = np.load(f)
         if self.transforms is not None:
             item = self.transforms(item)
         return item
