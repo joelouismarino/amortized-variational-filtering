@@ -20,7 +20,14 @@ def validate(data, model):
     return run(data, model)
 
 
-def run(data, model, optimizers=None):
+def visualize(data, model):
+    """
+    Function to visualize the model on data.
+    """
+    return run(data, model, visualize=True)
+
+
+def run(data, model, optimizers=None, visualize=False):
     """
     Function to train/validate the model on data.
 
@@ -35,7 +42,7 @@ def run(data, model, optimizers=None):
         model.train()
         if train_config['kl_annealing_epochs'] > 0:
             if epoch < train_config['kl_annealing_epochs']:
-                anneal_weight = epoch * 1. / train_config['kl_annealing_epochs']
+                anneal_weight = (epoch * 1. / train_config['kl_annealing_epochs']) ** 2
             else:
                 anneal_weight = 1.
         else:
@@ -68,8 +75,10 @@ def run(data, model, optimizers=None):
     # loop over training examples
     for batch_ind, batch in enumerate(data):
         print('Iteration: ' + str(batch_ind+1) + ' of ' + str(len(data)))
+
         # re-initialize the model from the data
         batch = Variable(batch.cuda())
+        # batch = Variable(batch)
         model.re_init(batch[0])
 
         # clear all of the gradients
@@ -85,7 +94,24 @@ def run(data, model, optimizers=None):
         step_output_log_var  = np.zeros((batch_size, n_inf_iter+1, n_steps))
         step_mean_grad       = np.zeros((batch_size, n_inf_iter+1, n_steps))
         step_log_var_grad    = np.zeros((batch_size, n_inf_iter+1, n_steps))
-        total_reconstruction = np.zeros(batch.data.shape)
+        if visualize:
+            n_variables = model.latent_levels[0].latent.variable_config['n_variables']
+            step_latent_mean = np.zeros((batch_size, n_inf_iter+1, n_steps, n_variables))
+            step_latent_log_var = np.zeros((batch_size, n_inf_iter+1, n_steps, n_variables))
+
+            data_shape = batch.data.shape
+            if len(data_shape) == 5:
+                # image data
+                _, _, c, h, w = data_shape
+                step_data = np.zeros((batch_size, n_steps, c, h, w))
+                step_output_mean = np.zeros((batch_size, n_inf_iter+1, n_steps, c, h, w))
+                step_output_log_var = np.zeros((batch_size, n_inf_iter+1, n_steps, c, h, w))
+            else:
+                # non-image data
+                _, _, m = data_shape
+                step_data = np.zeros((batch_size, n_steps, m))
+                step_output_mean = np.zeros((batch_size, n_inf_iter+1, n_steps, m))
+                step_output_log_var = np.zeros((batch_size, n_inf_iter+1, n_steps, m))
 
         # the total free energy for the batch of sequences
         total_free_energy = 0.
@@ -115,6 +141,15 @@ def run(data, model, optimizers=None):
             step_mean_grad[:, 0, step_ind]      = model.latent_levels[0].latent.approx_posterior_gradients()[0].abs().mean(dim=1).data.cpu().numpy()
             step_log_var_grad[:, 0, step_ind]   = model.latent_levels[0].latent.approx_posterior_gradients()[1].abs().mean(dim=1).data.cpu().numpy()
 
+            if visualize:
+                step_latent_mean[:, 0, step_ind] = model.latent_levels[0].latent.approx_post.mean.data.cpu().numpy()
+                step_latent_log_var[:, 0, step_ind] = model.latent_levels[0].latent.approx_post.log_var.data.cpu().numpy()
+
+                step_output_mean[:, 0, step_ind] = model.output_dist.mean.data.cpu().numpy()[:, 0]
+                step_output_log_var[:, 0, step_ind] = model.output_dist.log_var.data.cpu().numpy()[:, 0]
+
+                step_data[:, step_ind] = step_batch.data.cpu().numpy()
+
             # iterative inference
             for inf_it in range(n_inf_iter):
                 # perform inference
@@ -134,6 +169,13 @@ def run(data, model, optimizers=None):
                     step_output_log_var[:, inf_it+1, step_ind] = model.output_dist.log_var.mean(dim=2).mean(dim=1).data.cpu().numpy()
                 step_mean_grad[:, inf_it+1, step_ind]      = model.latent_levels[0].latent.approx_posterior_gradients()[0].abs().mean(dim=1).data.cpu().numpy()
                 step_log_var_grad[:, inf_it+1, step_ind]   = model.latent_levels[0].latent.approx_posterior_gradients()[1].abs().mean(dim=1).data.cpu().numpy()
+
+                if visualize:
+                    step_latent_mean[:, inf_it+1, step_ind] = model.latent_levels[0].latent.approx_post.mean.data.cpu().numpy()
+                    step_latent_log_var[:, inf_it+1, step_ind] = model.latent_levels[0].latent.approx_post.log_var.data.cpu().numpy()
+
+                    step_output_mean[:, inf_it+1, step_ind] = model.output_dist.mean.data.cpu().numpy()[:, 0]
+                    step_output_log_var[:, inf_it+1, step_ind] = model.output_dist.log_var.data.cpu().numpy()[:, 0]
 
                 if np.isnan(step_free_energy[:, inf_it+1, step_ind].mean()):
                     # if nan is encountered, stop training
@@ -159,7 +201,7 @@ def run(data, model, optimizers=None):
             # evaluate the free energy, add to total
             total_free_energy += model.free_energy(step_batch, anneal_weight=anneal_weight)
 
-            total_reconstruction[step_ind] = model.output_dist.mean.data.cpu().numpy()[:, 0]
+            # total_reconstruction[step_ind] = model.output_dist.mean.data.cpu().numpy()[:, 0]
 
             # form the prior on the next step
             model.step()
@@ -190,6 +232,19 @@ def run(data, model, optimizers=None):
             if not train_config['optimize_inf_online']:
                 inf_opt.step()
             gen_opt.step()
+
+        if visualize:
+            out_dict['latent_mean'] = step_latent_mean
+            out_dict['latent_log_var'] = step_latent_log_var
+            out_dict['output_mean'] = step_output_mean
+            out_dict['output_log_var'] = step_output_log_var
+            out_dict['data'] = step_data
+            out_dict['free_energy'] = step_free_energy
+            out_dict['cond_log_like'] = step_cond_log_like
+            out_dict['kl_div'] = step_kl_div
+            out_dict['mean_grad'] = step_mean_grad
+            out_dict['log_var_grad'] = step_log_var_grad
+            return out_dict
 
         out_dict['free_energy'][batch_ind]   = step_free_energy.mean(axis=0)
         out_dict['cond_log_like'][batch_ind] = step_cond_log_like.mean(axis=0)

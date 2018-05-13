@@ -1,5 +1,7 @@
 import torch
 import torch.nn as nn
+from torch.autograd import Variable
+import numpy as np
 from latent_variable_model import LatentVariableModel
 from lib.modules.latent_levels import FullyConnectedLatentLevel
 from lib.modules.networks import LSTMNetwork, FullyConnectedNetwork
@@ -57,6 +59,8 @@ class VRNN(LatentVariableModel):
             hidden_layers = 4
             x_dim = 200
             z_dim = 200
+            # TODO: check if this is correct
+            self.output_interval = 0.0018190742
         elif model_type == 'iam_ondb':
             lstm_units = 1200
             encoder_units = 150
@@ -67,9 +71,20 @@ class VRNN(LatentVariableModel):
             hidden_layers = 1
             x_dim = 3
             z_dim = 50
+        elif model_type == 'bball':
+            lstm_units = 200
+            encoder_units = 200
+            prior_units = 200
+            decoder_units = 200
+            x_units = 200
+            z_units = 200
+            hidden_layers = 2
+            x_dim = 2
+            z_dim = 4
+            self.output_interval = Variable(torch.from_numpy(np.array([1e-5 / 94., 1e-5 / 50.]).astype('float32')), requires_grad=False).cuda()
         else:
             raise Exception('VRNN model type must be one of 1) timit, 2) \
-                            blizzard, or 3) iam_ondb. Invalid model \
+                            blizzard, 3) iam_ondb, or 4) bball. Invalid model \
                             type: ' + model_type + '.')
 
         # LSTM

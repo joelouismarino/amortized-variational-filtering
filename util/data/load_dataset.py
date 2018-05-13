@@ -1,4 +1,5 @@
 import os
+import torch
 import cPickle
 import tarfile
 import misc_data_util.transforms as trans
@@ -157,6 +158,28 @@ def load_dataset(data_config):
             print('Done.')
         piano_roll = cPickle.load(os.path.join(data_path, 'jsb_chorales', 'JSBChorales.pickle'))
         # TODO: load jsb_chorales
+
+    ############################################################################
+    ## Tracking datasets
+    ############################################################################
+    elif dataset_name == 'bball':
+        assert os.path.exists(os.path.join(data_path, 'bball')), 'Basketball data not downloaded.'
+
+        if not os.path.exists(os.path.join(data_path, 'bball', 'train', 'Xtr_role.p')):
+            print('Converting basketball dataset...')
+            from misc_data_util.convert_bball import convert
+            convert(os.path.join(data_path, 'bball'))
+
+        from datasets import Basketball
+        LENGTH = 94
+        WIDTH = 50
+        SCALE = torch.zeros(50, 2)
+        SCALE[:, 0] = LENGTH; SCALE[:, 1] = WIDTH
+        transforms = [trans.ToTensor(), trans.Normalize(25., SCALE), trans.RandomSequenceCrop(data_config['sequence_length'])]
+        transforms = trans.Compose(transforms)
+
+        train = Basketball(os.path.join(data_path, 'bball', 'train', 'Xtr_role'), transforms)
+        test = Basketball(os.path.join(data_path, 'bball', 'test', 'Xte_role'), transforms)
 
     ############################################################################
     ## Video datasets

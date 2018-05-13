@@ -94,6 +94,11 @@ class Logger(object):
 
         return model, optimizers, schedulers
 
+    def load_best(self, model):
+        model_state_dict = torch.load(os.path.join(self.log_path, 'checkpoints', 'best', 'model.ckpt'))
+        model.load_state_dict(model_state_dict)
+        return model
+
     def _set_best_epoch(self, free_energy):
         """
         Sets the self._best_epoch flag by comparing current (val) free energy
