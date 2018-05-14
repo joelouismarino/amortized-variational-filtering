@@ -291,7 +291,7 @@ class VRNN(LatentVariableModel):
         self._z_enc = self.z_model(z.view(b*s, -1)).view(b, s, -1)
 
         # pass encoded z and previous h through the decoder model
-        dec = torch.cat([self._z_enc, prev_h], dim=2)
+        dec = torch.cat([self._z_enc, prev_h.repeat(1, s, 1)], dim=2)
         b, s, _ = dec.data.shape
         output = self.decoder_model(dec.view(b*s, -1)).view(b, s, -1)
 

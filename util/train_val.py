@@ -127,7 +127,7 @@ def run(data, model, optimizers=None, visualize=False):
                 inf_opt.zero_current_grad()
 
             # generate a prediction
-            model.generate()
+            model.generate(n_samples=n_step_samples)
 
             # evaluate the free energy to get gradients, errors
             free_energy, cond_log_like, kl = model.losses(step_batch, averaged=False, anneal_weight=anneal_weight)
@@ -156,7 +156,7 @@ def run(data, model, optimizers=None, visualize=False):
                 model.infer(step_batch)
 
                 # generate a reconstruction
-                model.generate()
+                model.generate(n_samples=n_step_samples)
 
                 # evaluate the free energy to get gradients, errors
                 free_energy, cond_log_like, kl = model.losses(step_batch, averaged=False, anneal_weight=anneal_weight)
@@ -196,7 +196,7 @@ def run(data, model, optimizers=None, visualize=False):
             model.generative_mode()
 
             # run the generative model
-            model.generate()
+            model.generate(n_samples=n_step_samples)
 
             # evaluate the free energy, add to total
             total_free_energy += model.free_energy(step_batch, anneal_weight=anneal_weight)

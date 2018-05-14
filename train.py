@@ -47,5 +47,5 @@ while True:
     if logger.save_epoch():
         logger.save_checkpoint(model, optimizers)
     logger.step(); plotter.step()
-    # schedulers[0].step(); schedulers[1].step()
+    schedulers[0].step(); schedulers[1].step()
     plotter.save()

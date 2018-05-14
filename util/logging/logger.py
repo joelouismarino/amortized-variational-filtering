@@ -88,7 +88,7 @@ class Logger(object):
         optimizer_state_dict = torch.load(os.path.join(self.log_path, 'checkpoints', str(self.epoch), 'opt.ckpt'))
         for opt_ind in range(len(optimizers)):
             optimizers[opt_ind].opt.load_state_dict(optimizer_state_dict[opt_ind])
-            optimizers[opt_ind].opt.state = set_gpu_recursive(optimizers[opt_ind].state, torch.cuda.current_device())
+            optimizers[opt_ind].opt.state = set_gpu_recursive(optimizers[opt_ind].opt.state, torch.cuda.current_device())
 
         schedulers = load_sched(optimizers, self.epoch)
 

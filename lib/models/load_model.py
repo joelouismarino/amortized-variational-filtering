@@ -8,9 +8,9 @@ def load_model(model_config):
     if model_name == 'vrnn':
         from vrnn import VRNN
         return VRNN(model_config)
-    # elif model_name == 'srnn':
-    #     from srnn import SRNN
-    #     return SRNN(model_config)
+    elif model_name == 'srnn':
+        from srnn import SRNN
+        return SRNN(model_config)
     # elif model_name == 'dvbf':
     #     from dvbf import DVBF
     #     return DVBF(model_config)

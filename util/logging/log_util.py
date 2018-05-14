@@ -18,9 +18,10 @@ def get_last_epoch(path):
     last_epoch = 0
     for r, d, f in os.walk(os.path.join(path, 'checkpoints')):
         for ckpt_dir in d:
-            epoch = int(ckpt_dir)
-            if epoch > last_epoch:
-                last_epoch = epoch
+            if ckpt_dir != 'best':
+                epoch = int(ckpt_dir)
+                if epoch > last_epoch:
+                    last_epoch = epoch
     return last_epoch
 
 
