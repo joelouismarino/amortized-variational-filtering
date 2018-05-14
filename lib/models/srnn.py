@@ -6,7 +6,7 @@ from latent_variable_model import LatentVariableModel
 from lib.modules.latent_levels import FullyConnectedLatentLevel
 from lib.modules.networks import LSTMNetwork, FullyConnectedNetwork
 from lib.modules.layers import FullyConnectedLayer
-from lib.distributions import Normal
+from lib.distributions import Normal, Bernoulli
 
 
 class SRNN(LatentVariableModel):
@@ -21,7 +21,82 @@ class SRNN(LatentVariableModel):
         self._construct(model_config)
 
     def _construct(self, model_config):
-        pass
+        """
+        Args:
+            model_config (dict): dictionary containing model configuration params
+        """
+        model_type = model_config['model_type'].lower()
+        self.modified = model_config['modified']
+        self.inference_procedure = model_config['inference_procedure'].lower()
+        if not self.modified:
+            assert self.inference_procedure == 'direct', 'The original model only supports direct inference.'
+        self._detach_h = False
+        latent_config = {}
+        level_config = {}
+        latent_config['inference_procedure'] = self.inference_procedure
+        # hard coded because we handle inference here in the model
+        level_config['inference_procedure'] = 'direct'
+
+        if model_type == 'timit':
+            lstm_units = 1024
+            x_dim = 200
+            z_dim = 256
+            n_layers = 2
+            n_units = 512
+            # Gaussian output
+            self.output_mean = FullyConnectedLayer({'n_in': n_units,
+                                                    'n_out': x_dim})
+            if model_config['global_output_log_var']:
+                self.output_log_var = nn.Parameter(torch.zeros(x_dim))
+            else:
+                self.output_log_var = FullyConnectedLayer({'n_in': n_units,
+                                                           'n_out': x_dim})
+        elif model_type == 'midi':
+            lstm_units = 300
+            x_dim = 0 # TODO: figure out what this should be
+            z_dim = 100
+            n_layers = 1
+            n_units = 500
+            # Bernoulli output
+            self.output_mean = FullyConnectedLayer({'n_in': n_units,
+                                                    'n_out': x_dim,
+                                                    'non_linearity': 'sigmoid'})
+            self.output_log_var = None
+        else:
+            raise Exception('SRNN model type must be one of 1) timit, 2) \
+                             or 4) midi. Invalid model type: ' + model_type + '.')
+
+        # LSTM
+        lstm_config = {'n_layers': 1, 'n_units': lstm_units, 'n_in': x_dim}
+        self.lstm = LSTMNetwork(lstm_config)
+
+        # latent level
+        gen_config = {'n_in': lstm_units + z_dim, 'n_units': n_units,
+                      'n_layers': n_layers, 'non_linearity': 'leaky_relu'}
+        level_config['generative_config'] = gen_config
+        latent_config['n_variables'] = z_dim
+
+        if self.modified:
+            inf_model_units = n_units
+            inf_model_config = {'n_in': 4 * z_dim, 'n_units': n_units,
+                                'n_layers': n_layers, 'non_linearity': 'leaky_relu'}
+        else:
+            inf_model_units = n_units
+            inf_model_config = {'n_in': lstm_units + x_dim, 'n_units': n_units,
+                                'n_layers': n_layers, 'non_linearity': 'leaky_relu'}
+        self.inference_model = FullyConnectedNetwork(inf_model_config)
+        latent_config['n_in'] = (inf_model_units, n_units)
+        level_config['latent_config'] = latent_config
+        latent = FullyConnectedLatentLevel(level_config)
+        self.latent_levels = nn.ModuleList([latent])
+
+        self._initial_z = nn.Parameter(torch.zeros(z_dim))
+
+        # decoder
+        decoder_config = {'n_in': lstm_units + z_dim, 'n_units': n_units,
+                          'n_layers': 2, 'non_linearity': 'leaky_relu'}
+        self.decoder_model = FullyConnectedNetwork(decoder_config)
+
 
     def _get_encoding_form(self, observation):
         """
@@ -126,7 +201,17 @@ class SRNN(LatentVariableModel):
         Args:
             observation (tensor): observation to infer latent variables from
         """
-        pass
+        if self._x is None:
+            # store the observation
+            self._x = observation
+        enc = self._get_encoding_form(observation)
+        if self.modified:
+            pass
+        else:
+            h = self._h
+            enc = torch.cat([enc, h], dim=1)
+        enc = self.inference_model(enc)
+        self.latent_levels[0].infer(enc)
 
     def generate(self, gen=False, n_samples=1):
         """
@@ -137,20 +222,70 @@ class SRNN(LatentVariableModel):
             gen (boolean): whether to sample from prior or approximate posterior
             n_samples (int): number of samples to draw and evaluate
         """
-        pass
+        h = self._h.detach() if self._detach_h else self._h
+        prev_z = self._prev_z.detach() if self._detach_h else self._prev_z
+
+        gen_input = torch.cat([h, prev_z], dim=2)
+        self._z = self.latent_levels[0].generate(gen_input, gen=gen, n_samples=n_samples)
+
+        dec_input = torch.cat([h, self._z], dim=2)
+        dec = self.decoder_model(dec_input)
+
+        output_mean = self.output_mean(dec)
+
+        if self.output_log_var:
+            # Gaussian output
+            if self.model_config['global_output_log_var']:
+                b, s = dec.data.shape[0], dec.data.shape[1]
+                log_var = self.output_log_var.view(1, 1, -1).repeat(b, s, 1)
+                self.output_dist.log_var = torch.clamp(log_var, min=-10)
+            else:
+                output_log_var = torch.clamp(self.output_log_var(dec), min=-10)
+            self.output_dist = Normal(output_mean, output_log_var)
+        else:
+            # Bernoulli output
+            self.output_dist = Bernoulli(output_mean)
+
+        return self.output_dist.sample()
 
     def step(self, n_samples=1):
         """
         Method for stepping the generative model forward one step in the sequence.
         """
-        pass
+        # set the previous z
+        self._prev_z = self._z
+
+        # step the LSTM (using the previous observation)
+        self._h = self.lstm(self._x)
+        prev_h = self._h.unsqueeze(1)
+        self.lstm.step()
+        self._x = None
+
+        # get the prior, use it to initialize the approximate posterior
+        gen_input = torch.cat([prev_h, self._prev_z], dim=2)
+        self.latent_levels[0].generate(gen_input, gen=True, n_samples=n_samples)
+        self.latent_levels[0].latent.re_init_approx_posterior()
 
     def re_init(self, input):
         """
         Method for reinitializing the state (approximate posterior and priors)
         of the dynamical latent variable model.
         """
-        pass
+        # re-initialize the LSTM hidden and cell states
+        self.lstm.re_init(input)
+
+        # set the previous hidden state, add sample dimension
+        self._h = self.lstm(input)
+        prev_h = self._prev_h.unsqueeze(1)
+        self.lstm.step()
+        self._x = None
+
+        self._z = None
+        self._prev_z = self._initial_z.unsqueeze(1)
+
+        # get the prior, use it to initialize the approximate posterior
+        self.latent_levels[0].generate([prev_h, self._prev_z], gen=True, n_samples=1)
+        self.latent_levels[0].latent.re_init_approx_posterior()
 
     def inference_parameters(self):
         """
@@ -158,7 +293,9 @@ class SRNN(LatentVariableModel):
         """
         params = nn.ParameterList()
         if self.inference_procedure != 'sgd':
+            params.extend(list(self.inference_model.parameters()))
             params.extend(list(self.latent_levels[0].inference_parameters()))
+            params.append(self._initial_z)
         return params
 
     def generative_parameters(self):
@@ -168,8 +305,6 @@ class SRNN(LatentVariableModel):
         params = nn.ParameterList()
         params.extend(list(self.lstm.parameters()))
         params.extend(list(self.latent_levels[0].generative_parameters()))
-        params.extend(list(self.x_model.parameters()))
-        params.extend(list(self.z_model.parameters()))
         params.extend(list(self.decoder_model.parameters()))
         params.extend(list(self.output_mean.parameters()))
         if self.model_config['global_output_log_var']:

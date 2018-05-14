@@ -38,6 +38,8 @@ class FullyConnectedLayer(Layer):
             elif non_linearity == 'relu':
                 self.non_linearity = nn.ReLU()
                 init_gain = init.calculate_gain('relu')
+            elif non_linearity == 'leaky_relu':
+                self.non_linearity = nn.LeakyReLU(negative_slope=1./3)
             elif non_linearity == 'elu':
                 self.non_linearity = nn.ELU()
             elif non_linearity == 'selu':
