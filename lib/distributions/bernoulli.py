@@ -12,7 +12,7 @@ class Bernoulli(Distribution):
     Args:
         mean (tensor): the mean of the distribution
     """
-    def __init__(self, mean):
+    def __init__(self, mean=None):
         super(Bernoulli, self).__init__()
         self.mean_reset_value = Parameter(dt.zeros(1))
         self.mean = mean

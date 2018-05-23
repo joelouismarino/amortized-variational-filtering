@@ -44,6 +44,8 @@ class SRNN(LatentVariableModel):
             n_layers = 2
             n_units = 512
             # Gaussian output
+            self.output_interval = 0.0018190742
+            self.output_dist = Normal()
             self.output_mean = FullyConnectedLayer({'n_in': n_units,
                                                     'n_out': x_dim})
             if model_config['global_output_log_var']:
@@ -53,11 +55,12 @@ class SRNN(LatentVariableModel):
                                                            'n_out': x_dim})
         elif model_type == 'midi':
             lstm_units = 300
-            x_dim = 0 # TODO: figure out what this should be
+            x_dim = 88
             z_dim = 100
             n_layers = 1
             n_units = 500
             # Bernoulli output
+            self.output_dist = Bernoulli()
             self.output_mean = FullyConnectedLayer({'n_in': n_units,
                                                     'n_out': x_dim,
                                                     'non_linearity': 'sigmoid'})
@@ -70,20 +73,33 @@ class SRNN(LatentVariableModel):
         lstm_config = {'n_layers': 1, 'n_units': lstm_units, 'n_in': x_dim}
         self.lstm = LSTMNetwork(lstm_config)
 
+        # non_linearity = 'sigmoid'
+
         # latent level
         gen_config = {'n_in': lstm_units + z_dim, 'n_units': n_units,
-                      'n_layers': n_layers, 'non_linearity': 'leaky_relu'}
+                      'n_layers': n_layers, 'non_linearity': 'clipped_leaky_relu'}
+        # gen_config = {'n_in': lstm_units + z_dim, 'n_units': n_units,
+        #               'n_layers': n_layers, 'non_linearity': non_linearity}
         level_config['generative_config'] = gen_config
+        level_config['inference_config'] = None
         latent_config['n_variables'] = z_dim
 
         if self.modified:
-            inf_model_units = n_units
-            inf_model_config = {'n_in': 4 * z_dim, 'n_units': n_units,
-                                'n_layers': n_layers, 'non_linearity': 'leaky_relu'}
+            inf_model_units = 1024
+            inf_model_layers = 2
+            inf_model_config = {'n_in': 4 * z_dim, 'n_units': inf_model_units,
+                                'n_layers': inf_model_layers, 'non_linearity': 'elu'}
+            # inf_model_config = {'n_in': 4 * z_dim, 'n_units': inf_model_units,
+            #                     'n_layers': inf_model_layers, 'non_linearity': non_linearity}
+            if model_config['concat_observation']:
+                inf_model_config['n_in'] += x_dim
+            inf_model_config['connection_type'] = 'highway'
         else:
             inf_model_units = n_units
             inf_model_config = {'n_in': lstm_units + x_dim, 'n_units': n_units,
-                                'n_layers': n_layers, 'non_linearity': 'leaky_relu'}
+                                'n_layers': n_layers, 'non_linearity': 'clipped_leaky_relu'}
+            # inf_model_config = {'n_in': lstm_units + x_dim, 'n_units': n_units,
+            #                     'n_layers': n_layers, 'non_linearity': non_linearity}
         self.inference_model = FullyConnectedNetwork(inf_model_config)
         latent_config['n_in'] = (inf_model_units, n_units)
         level_config['latent_config'] = latent_config
@@ -94,7 +110,9 @@ class SRNN(LatentVariableModel):
 
         # decoder
         decoder_config = {'n_in': lstm_units + z_dim, 'n_units': n_units,
-                          'n_layers': 2, 'non_linearity': 'leaky_relu'}
+                          'n_layers': 2, 'non_linearity': 'clipped_leaky_relu'}
+        # decoder_config = {'n_in': lstm_units + z_dim, 'n_units': n_units,
+        #                   'n_layers': 2, 'non_linearity': non_linearity}
         self.decoder_model = FullyConnectedNetwork(decoder_config)
 
 
@@ -223,13 +241,17 @@ class SRNN(LatentVariableModel):
             n_samples (int): number of samples to draw and evaluate
         """
         h = self._h.detach() if self._detach_h else self._h
+        h = h.unsqueeze(1)
         prev_z = self._prev_z.detach() if self._detach_h else self._prev_z
+        if prev_z.data.shape[1] != n_samples:
+            prev_z = prev_z.repeat(1, n_samples, 1)
 
-        gen_input = torch.cat([h, prev_z], dim=2)
+        gen_input = torch.cat([h.repeat(1, n_samples, 1), prev_z], dim=2)
         self._z = self.latent_levels[0].generate(gen_input, gen=gen, n_samples=n_samples)
 
-        dec_input = torch.cat([h, self._z], dim=2)
-        dec = self.decoder_model(dec_input)
+        dec_input = torch.cat([h.repeat(1, n_samples, 1), self._z], dim=2)
+        b, s, _ = dec_input.data.shape
+        dec = self.decoder_model(dec_input.view(b * s, -1)).view(b, s, -1)
 
         output_mean = self.output_mean(dec)
 
@@ -254,15 +276,15 @@ class SRNN(LatentVariableModel):
         """
         # set the previous z
         self._prev_z = self._z
+        s = self._prev_z.data.shape[1]
 
         # step the LSTM (using the previous observation)
         self._h = self.lstm(self._x)
-        prev_h = self._h.unsqueeze(1)
         self.lstm.step()
         self._x = None
 
         # get the prior, use it to initialize the approximate posterior
-        gen_input = torch.cat([prev_h, self._prev_z], dim=2)
+        gen_input = torch.cat([self._h.unsqueeze(1).repeat(1, s, 1), self._prev_z], dim=2)
         self.latent_levels[0].generate(gen_input, gen=True, n_samples=n_samples)
         self.latent_levels[0].latent.re_init_approx_posterior()
 
@@ -276,15 +298,15 @@ class SRNN(LatentVariableModel):
 
         # set the previous hidden state, add sample dimension
         self._h = self.lstm(input)
-        prev_h = self._prev_h.unsqueeze(1)
         self.lstm.step()
         self._x = None
 
         self._z = None
-        self._prev_z = self._initial_z.unsqueeze(1)
+        self._prev_z = self._initial_z.view(1, 1, -1).repeat(input.data.shape[0], 1, 1)
 
         # get the prior, use it to initialize the approximate posterior
-        self.latent_levels[0].generate([prev_h, self._prev_z], gen=True, n_samples=1)
+        gen_input = torch.cat([self._h.unsqueeze(1), self._prev_z], dim=2)
+        self.latent_levels[0].generate(gen_input, gen=True, n_samples=1)
         self.latent_levels[0].latent.re_init_approx_posterior()
 
     def inference_parameters(self):
@@ -307,10 +329,11 @@ class SRNN(LatentVariableModel):
         params.extend(list(self.latent_levels[0].generative_parameters()))
         params.extend(list(self.decoder_model.parameters()))
         params.extend(list(self.output_mean.parameters()))
-        if self.model_config['global_output_log_var']:
-            params.append(self.output_log_var)
-        else:
-            params.extend(list(self.output_log_var.parameters()))
+        if self.output_log_var is not None:
+            if self.model_config['global_output_log_var']:
+                params.append(self.output_log_var)
+            else:
+                params.extend(list(self.output_log_var.parameters()))
         return params
 
     def inference_mode(self):

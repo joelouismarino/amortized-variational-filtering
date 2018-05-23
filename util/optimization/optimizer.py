@@ -12,7 +12,7 @@ class Optimizer(object):
         parameters (iterable): the parameters to optimize
         lr (float): the learning rate for the optimizer
     """
-    def __init__(self, opt_name, parameters, lr):
+    def __init__(self, opt_name, parameters, lr, clip_grad_norm=None):
         opt_name = opt_name.lower().replace('_', '').strip()
         if opt_name == 'sgd':
             optimizer = opt.SGD
@@ -25,6 +25,7 @@ class Optimizer(object):
             # in case we're not using the optimizer
             self.parameters = [Variable(torch.zeros(1), requires_grad=True)]
         self.opt = optimizer(self.parameters, lr=lr)
+        self.clip_grad_norm = clip_grad_norm
         self.stored_grads = None
         self.zero_stored_grad()
         self._n_iter = 0
@@ -44,6 +45,8 @@ class Optimizer(object):
         assert self._n_iter > 0, 'The optimizer does not have gradients to apply.'
         for ind, param in enumerate(self.parameters):
             param.grad = self.stored_grads[ind] / self._n_iter
+        if self.clip_grad_norm:
+            torch.nn.utils.clip_grad_norm(self.parameters, self.clip_grad_norm)
         self.opt.step()
         self._n_iter = 0
         self.zero_stored_grad()

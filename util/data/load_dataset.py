@@ -92,14 +92,17 @@ def load_dataset(data_config):
         from datasets import TIMIT
         mean, std = cPickle.load(open(os.path.join(data_path, 'timit', 'statistics.p'), 'r'))
         total_len = data_config['window'] * data_config['sequence_length']
-        data_trans = trans.Compose([trans.RandomSequenceCrop(total_len),
-                                    trans.Normalize(mean, std),
+        train_trans = trans.Compose([trans.RandomSequenceCrop(total_len),
+                                     trans.Normalize(mean, std),
+                                     trans.BinSequence(data_config['window']),
+                                     trans.ToTensor()])
+        test_trans = trans.Compose([trans.Normalize(mean, std),
                                     trans.BinSequence(data_config['window']),
                                     trans.ToTensor()])
 
-        train = TIMIT(os.path.join(data_path, 'timit', 'train', 'train.p'), data_trans)
-        val = TIMIT(os.path.join(data_path, 'timit', 'val', 'val.p'), data_trans)
-        test = TIMIT(os.path.join(data_path, 'timit', 'test', 'test.p'), data_trans)
+        train = TIMIT(os.path.join(data_path, 'timit', 'train', 'train.p'), train_trans)
+        val = TIMIT(os.path.join(data_path, 'timit', 'val', 'val.p'), train_trans)
+        test = TIMIT(os.path.join(data_path, 'timit', 'test', 'test.p'), test_trans)
 
     ############################################################################
     ## Handwriting datasets
@@ -123,8 +126,19 @@ def load_dataset(data_config):
             save('http://www-etud.iro.umontreal.ca/~boulanni/Piano-midi.de.pickle',
                  os.path.join(data_path, 'piano_midi', 'Piano-midi.de.pickle'))
             print('Done.')
-        piano_roll = cPickle.load(os.path.join(data_path, 'piano_midi', 'Piano-midi.de.pickle'))
-        # TODO: load piano_midi
+        piano_roll = cPickle.load(open(os.path.join(data_path, 'piano_midi', 'Piano-midi.de.pickle'), 'r'))
+
+        from datasets import MIDI
+        from misc_data_util.midi_util import get_max_min_notes, filter_by_length
+
+        # max_min_notes = get_max_min_notes(piano_roll)
+        max_min_notes = (108, 21)
+        train_transforms = trans.Compose([trans.ToTensor(), trans.RandomSequenceCrop(data_config['sequence_length'])])
+        test_transforms = trans.ToTensor()
+
+        train = MIDI(filter_by_length(piano_roll['train'], data_config['sequence_length']), max_min_notes, train_transforms)
+        val = MIDI(filter_by_length(piano_roll['valid'], data_config['sequence_length']), max_min_notes, train_transforms)
+        test = MIDI(piano_roll['test'], max_min_notes, test_transforms)
 
     elif dataset_name == 'nottingham':
         if not os.path.exists(os.path.join(data_path, 'nottingham')):
@@ -134,8 +148,19 @@ def load_dataset(data_config):
             save('http://www-etud.iro.umontreal.ca/~boulanni/Nottingham.pickle',
                  os.path.join(data_path, 'nottingham', 'Nottingham.pickle'))
             print('Done.')
-        piano_roll = cPickle.load(os.path.join(data_path, 'nottingham', 'Nottingham.pickle'))
-        # TODO: load nottingham
+        piano_roll = cPickle.load(open(os.path.join(data_path, 'nottingham', 'Nottingham.pickle'), 'r'))
+
+        from datasets import MIDI
+        from misc_data_util.midi_util import get_max_min_notes, filter_by_length
+
+        # max_min_notes = get_max_min_notes(piano_roll)
+        max_min_notes = (108, 21)
+        train_transforms = trans.Compose([trans.ToTensor(), trans.RandomSequenceCrop(data_config['sequence_length'])])
+        test_transforms = trans.ToTensor()
+
+        train = MIDI(filter_by_length(piano_roll['train'], data_config['sequence_length']), max_min_notes, train_transforms)
+        val = MIDI(filter_by_length(piano_roll['valid'], data_config['sequence_length']), max_min_notes, train_transforms)
+        test = MIDI(piano_roll['test'], max_min_notes, test_transforms)
 
     elif dataset_name == 'muse':
         if not os.path.exists(os.path.join(data_path, 'muse')):
@@ -145,8 +170,19 @@ def load_dataset(data_config):
             save('http://www-etud.iro.umontreal.ca/~boulanni/MuseData.pickle',
                  os.path.join(data_path, 'muse', 'MuseData.pickle'))
             print('Done.')
-        piano_roll = cPickle.load(os.path.join(data_path, 'muse', 'MuseData.pickle'))
-        # TODO: load muse
+        piano_roll = cPickle.load(open(os.path.join(data_path, 'muse', 'MuseData.pickle'), 'r'))
+
+        from datasets import MIDI
+        from misc_data_util.midi_util import get_max_min_notes, filter_by_length
+
+        # max_min_notes = get_max_min_notes(piano_roll)
+        max_min_notes = (108, 21)
+        train_transforms = trans.Compose([trans.ToTensor(), trans.RandomSequenceCrop(data_config['sequence_length'])])
+        test_transforms = trans.ToTensor()
+
+        train = MIDI(filter_by_length(piano_roll['train'], data_config['sequence_length']), max_min_notes, train_transforms)
+        val = MIDI(filter_by_length(piano_roll['valid'], data_config['sequence_length']), max_min_notes, train_transforms)
+        test = MIDI(piano_roll['test'], max_min_notes, test_transforms)
 
     elif dataset_name == 'jsb_chorales':
         if not os.path.exists(os.path.join(data_path, 'jsb_chorales')):
@@ -156,8 +192,19 @@ def load_dataset(data_config):
             save('http://www-etud.iro.umontreal.ca/~boulanni/JSBChorales.pickle',
                  os.path.join(data_path, 'jsb_chorales', 'JSBChorales.pickle'))
             print('Done.')
-        piano_roll = cPickle.load(os.path.join(data_path, 'jsb_chorales', 'JSBChorales.pickle'))
-        # TODO: load jsb_chorales
+        piano_roll = cPickle.load(open(os.path.join(data_path, 'jsb_chorales', 'JSBChorales.pickle'), 'r'))
+
+        from datasets import MIDI
+        from misc_data_util.midi_util import get_max_min_notes, filter_by_length
+
+        # max_min_notes = get_max_min_notes(piano_roll)
+        max_min_notes = (108, 21)
+        train_transforms = trans.Compose([trans.ToTensor(), trans.RandomSequenceCrop(data_config['sequence_length'])])
+        test_transforms = trans.ToTensor()
+
+        train = MIDI(filter_by_length(piano_roll['train'], data_config['sequence_length']), max_min_notes, train_transforms)
+        val = MIDI(filter_by_length(piano_roll['valid'], data_config['sequence_length']), max_min_notes, train_transforms)
+        test = MIDI(piano_roll['test'], max_min_notes, test_transforms)
 
     ############################################################################
     ## Tracking datasets
@@ -230,10 +277,13 @@ def load_dataset(data_config):
                       trans.ImageToTensor(),
                       trans.ConcatSequence()]
         train_trans = trans.Compose(train_transforms + transforms)
-        val_test_trans = trans.Compose(transforms)
+        val_trans = trans.Compose(transforms)
+        test_trans = trans.Compose([trans.Resize(data_config['img_size']),
+                      trans.ImageToTensor(),
+                      trans.ConcatSequence()])
         train = KTHActions(os.path.join(data_path, 'kth_actions', 'train'), train_trans)
-        val   = KTHActions(os.path.join(data_path, 'kth_actions', 'val'), val_test_trans)
-        test  = KTHActions(os.path.join(data_path, 'kth_actions', 'test'), val_test_trans)
+        val   = KTHActions(os.path.join(data_path, 'kth_actions', 'val'), val_trans)
+        test  = KTHActions(os.path.join(data_path, 'kth_actions', 'test'), test_trans)
 
     elif dataset_name == 'bair_robot_pushing':
         if not os.path.exists(os.path.join(data_path, 'bair_robot_pushing')):

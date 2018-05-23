@@ -94,6 +94,12 @@ class Logger(object):
 
         return model, optimizers, schedulers
 
+    def load_epoch(self, model, epoch):
+        self.epoch = epoch
+        model_state_dict = torch.load(os.path.join(self.log_path, 'checkpoints', str(epoch), 'model.ckpt'))
+        model.load_state_dict(model_state_dict)
+        return model
+
     def load_best(self, model):
         model_state_dict = torch.load(os.path.join(self.log_path, 'checkpoints', 'best', 'model.ckpt'))
         model.load_state_dict(model_state_dict)

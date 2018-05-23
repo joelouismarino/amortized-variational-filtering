@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 from torch.nn import init
 from layer import Layer
+from lib.modules.misc import ClippedLeakyReLU
 
 
 class FullyConnectedLayer(Layer):
@@ -39,7 +40,9 @@ class FullyConnectedLayer(Layer):
                 self.non_linearity = nn.ReLU()
                 init_gain = init.calculate_gain('relu')
             elif non_linearity == 'leaky_relu':
-                self.non_linearity = nn.LeakyReLU(negative_slope=1./3)
+                self.non_linearity = nn.LeakyReLU()
+            elif non_linearity == 'clipped_leaky_relu':
+                self.non_linearity = ClippedLeakyReLU(negative_slope=1./3, clip_min=-3, clip_max=3)
             elif non_linearity == 'elu':
                 self.non_linearity = nn.ELU()
             elif non_linearity == 'selu':

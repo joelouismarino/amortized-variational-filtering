@@ -87,7 +87,7 @@ class RandomSequenceCrop(object):
         elif 'shape' in dir(input):
             input_seq_len = input.shape[0]
         max_start_ind = input_seq_len - self.seq_len + 1
-        assert max_start_ind > 0, 'Sequence length longer than input sequence.'
+        assert max_start_ind > 0, 'Sequence length longer than input sequence length: ' + str(input_seq_len) + '.'
         start_ind = np.random.choice(range(max_start_ind))
         return input[start_ind:start_ind+self.seq_len]
 
@@ -179,6 +179,8 @@ class BinSequence(object):
     def __call__(self, input):
         if type(input) == list:
             input = np.array(input)
+        n_bins = int(input.shape[0] / self.window)
+        input = input[:n_bins*self.window]
         if type(input) == np.ndarray:
             return input.reshape(-1, self.window)
         else:

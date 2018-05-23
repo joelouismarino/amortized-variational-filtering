@@ -1,4 +1,5 @@
 from torch.autograd import Variable
+from lib.distributions import Normal
 from config import train_config, data_config
 import numpy as np
 
@@ -136,8 +137,9 @@ def run(data, model, optimizers=None, visualize=False):
             step_free_energy[:, 0, step_ind]    = free_energy.data.cpu().numpy()
             step_cond_log_like[:, 0, step_ind]  = cond_log_like.data.cpu().numpy()
             step_kl_div[:, 0, step_ind]         = kl[0].data.cpu().numpy()
-            if model.output_dist.log_var.data.shape == 3:
-                step_output_log_var[:, 0, step_ind] = model.output_dist.log_var.mean(dim=2).mean(dim=1).data.cpu().numpy()
+            if type(model.output_dist) == Normal:
+                if model.output_dist.log_var.data.shape == 3:
+                    step_output_log_var[:, 0, step_ind] = model.output_dist.log_var.mean(dim=2).mean(dim=1).data.cpu().numpy()
             step_mean_grad[:, 0, step_ind]      = model.latent_levels[0].latent.approx_posterior_gradients()[0].abs().mean(dim=1).data.cpu().numpy()
             step_log_var_grad[:, 0, step_ind]   = model.latent_levels[0].latent.approx_posterior_gradients()[1].abs().mean(dim=1).data.cpu().numpy()
 
@@ -146,7 +148,8 @@ def run(data, model, optimizers=None, visualize=False):
                 step_latent_log_var[:, 0, step_ind] = model.latent_levels[0].latent.approx_post.log_var.data.cpu().numpy()
 
                 step_output_mean[:, 0, step_ind] = model.output_dist.mean.data.cpu().numpy()[:, 0]
-                step_output_log_var[:, 0, step_ind] = model.output_dist.log_var.data.cpu().numpy()[:, 0]
+                if type(model.output_dist) == Normal:
+                    step_output_log_var[:, 0, step_ind] = model.output_dist.log_var.data.cpu().numpy()[:, 0]
 
                 step_data[:, step_ind] = step_batch.data.cpu().numpy()
 
@@ -165,8 +168,9 @@ def run(data, model, optimizers=None, visualize=False):
                 step_free_energy[:, inf_it+1, step_ind]    = free_energy.data.cpu().numpy()
                 step_cond_log_like[:, inf_it+1, step_ind]  = cond_log_like.data.cpu().numpy()
                 step_kl_div[:, inf_it+1, step_ind]         = kl[0].data.cpu().numpy()
-                if model.output_dist.log_var.data.shape == 3:
-                    step_output_log_var[:, inf_it+1, step_ind] = model.output_dist.log_var.mean(dim=2).mean(dim=1).data.cpu().numpy()
+                if type(model.output_dist) == Normal:
+                    if model.output_dist.log_var.data.shape == 3:
+                        step_output_log_var[:, inf_it+1, step_ind] = model.output_dist.log_var.mean(dim=2).mean(dim=1).data.cpu().numpy()
                 step_mean_grad[:, inf_it+1, step_ind]      = model.latent_levels[0].latent.approx_posterior_gradients()[0].abs().mean(dim=1).data.cpu().numpy()
                 step_log_var_grad[:, inf_it+1, step_ind]   = model.latent_levels[0].latent.approx_posterior_gradients()[1].abs().mean(dim=1).data.cpu().numpy()
 

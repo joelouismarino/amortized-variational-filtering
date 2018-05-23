@@ -168,6 +168,47 @@ else:
     plt.ylim((min_val, max_val))
     plt.axis('off')
 
+# data
+plt.subplot(3, 1, 1)
+plt.plot(data.reshape(-1))
+plt.ylim((y_min, y_max))
+plt.axis('off')
+
+# prediction
+plt.subplot(3, 1, 2)
+pred_mean = output['out_mean'][0][0].reshape(-1)
+plt.plot(pred_mean)
+plt.ylim((y_min, y_max))
+plt.axis('off')
+
+# reconstruction
+plt.subplot(3, 1, 3)
+pred_mean = output['out_mean'][0][1].reshape(-1)
+plt.plot(pred_mean)
+plt.ylim((y_min, y_max))
+plt.axis('off')
+
+
+minval = 44
+maxval = 74
+
+# data
+plt.subplot(3, 1, 1)
+plt.imshow(1. - data[:, 0].transpose()[minval:maxval], cmap='gray')
+plt.axis('off')
+
+# prediction
+plt.subplot(3, 1, 2)
+pred_mean = output['out_mean'][0][0].transpose()[minval:maxval]
+plt.imshow(1. - pred_mean, cmap='gray')
+plt.axis('off')
+
+# reconstruction
+plt.subplot(3, 1, 3)
+recon_mean = output['out_mean'][0][1].transpose()[minval:maxval]
+plt.imshow(1. - recon_mean, cmap='gray')
+plt.axis('off')
+
 
 
 

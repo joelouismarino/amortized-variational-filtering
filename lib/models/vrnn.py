@@ -72,7 +72,7 @@ class VRNN(LatentVariableModel):
             x_dim = 3
             z_dim = 50
         elif model_type == 'bball':
-            lstm_units = 200
+            lstm_units = 1000
             encoder_units = 200
             prior_units = 200
             decoder_units = 200
@@ -80,7 +80,7 @@ class VRNN(LatentVariableModel):
             z_units = 200
             hidden_layers = 2
             x_dim = 2
-            z_dim = 4
+            z_dim = 50
             self.output_interval = Variable(torch.from_numpy(np.array([1e-5 / 94., 1e-5 / 50.]).astype('float32')), requires_grad=False).cuda()
         else:
             raise Exception('VRNN model type must be one of 1) timit, 2) \
@@ -265,7 +265,7 @@ class VRNN(LatentVariableModel):
         else:
             inf_input = self._x_enc
             prev_h = self._prev_h
-            prev_h = prev_h.detach() if self._detach_h else prev_h
+            # prev_h = prev_h.detach() if self._detach_h else prev_h
             enc = torch.cat([inf_input, prev_h], dim=1)
             self.latent_levels[0].infer(enc)
 
@@ -300,9 +300,9 @@ class VRNN(LatentVariableModel):
         if self.model_config['global_output_log_var']:
             b, s = output.data.shape[0], output.data.shape[1]
             log_var = self.output_log_var.view(1, 1, -1).repeat(b, s, 1)
-            self.output_dist.log_var = torch.clamp(log_var, min=-10)
+            self.output_dist.log_var = torch.clamp(log_var, min=-20)
         else:
-            self.output_dist.log_var = torch.clamp(self.output_log_var(output), min=-10.)
+            self.output_dist.log_var = torch.clamp(self.output_log_var(output), min=-20.)
 
         return self.output_dist.sample()
 

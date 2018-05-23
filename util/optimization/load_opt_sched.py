@@ -8,11 +8,13 @@ def load_opt_sched(train_config, model):
     gen_params = model.generative_parameters()
 
     inf_opt = Optimizer(train_config['optimizer'], inf_params,
-                        lr=train_config['inference_learning_rate'])
+                        lr=train_config['inference_learning_rate'],
+                        clip_grad_norm=train_config['clip_grad_norm'])
     inf_sched = ExponentialLR(inf_opt.opt, 0.999)
 
     gen_opt = Optimizer(train_config['optimizer'], gen_params,
-                        lr=train_config['generation_learning_rate'])
+                        lr=train_config['generation_learning_rate'],
+                        clip_grad_norm=train_config['clip_grad_norm'])
     gen_sched = ExponentialLR(gen_opt.opt, 0.999)
 
     return (inf_opt, gen_opt), (inf_sched, gen_sched)

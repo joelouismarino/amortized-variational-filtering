@@ -69,8 +69,8 @@ class FullyConnectedLatentVariable(LatentVariable):
             self.approx_post.log_var = torch.clamp(approx_post_log_var, -15, 15)
         elif self.inference_procedure in ['gradient', 'error']:
             approx_post_mean_gate = self.approx_post_mean_gate(input)
-            self.approx_post.mean = nn.Tanh()(approx_post_mean_gate * self.approx_post.mean.detach() \
-                                    + (1 - approx_post_mean_gate) * approx_post_mean)
+            self.approx_post.mean = approx_post_mean_gate * self.approx_post.mean.detach() \
+                                    + (1 - approx_post_mean_gate) * approx_post_mean
             approx_post_log_var_gate = self.approx_post_log_var_gate(input)
             self.approx_post.log_var = torch.clamp(approx_post_log_var_gate * self.approx_post.log_var.detach() \
                                        + (1 - approx_post_log_var_gate) * approx_post_log_var, -15, 15)

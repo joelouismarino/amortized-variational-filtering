@@ -24,3 +24,7 @@ if model_config['architecture'].lower() == 'svg':
 ## VRNN
 if model_config['architecture'].lower() == 'vrnn':
     model_config['model_type'] = 'timit'
+
+## SRNN
+if model_config['architecture'].lower() == 'srnn':
+    model_config['model_type'] = 'midi'
