@@ -69,6 +69,10 @@ def run(data, model, optimizers=None, visualize=False):
     out_dict['out_log_var']    = np.zeros((n_batches, n_inf_iter+1, n_steps))
     out_dict['mean_grad']      = np.zeros((n_batches, n_inf_iter+1))
     out_dict['log_var_grad']   = np.zeros((n_batches, n_inf_iter+1))
+    out_dict['post_mean']      = np.zeros((n_batches, n_inf_iter+1))
+    out_dict['post_log_var']   = np.zeros((n_batches, n_inf_iter+1))
+    out_dict['prior_mean']     = np.zeros((n_batches, n_inf_iter+1))
+    out_dict['prior_log_var']  = np.zeros((n_batches, n_inf_iter+1))
     if optimizers:
         out_dict['inf_param_grad'] = np.zeros(n_batches)
         out_dict['gen_param_grad'] = np.zeros(n_batches)
@@ -89,12 +93,17 @@ def run(data, model, optimizers=None, visualize=False):
 
         batch_size = batch.data.shape[1]
         # to record the statistics while running on this batch
-        step_free_energy     = np.zeros((batch_size, n_inf_iter+1, n_steps))
-        step_cond_log_like   = np.zeros((batch_size, n_inf_iter+1, n_steps))
-        step_kl_div          = np.zeros((batch_size, n_inf_iter+1, n_steps))
-        step_output_log_var  = np.zeros((batch_size, n_inf_iter+1, n_steps))
-        step_mean_grad       = np.zeros((batch_size, n_inf_iter+1, n_steps))
-        step_log_var_grad    = np.zeros((batch_size, n_inf_iter+1, n_steps))
+        step_free_energy    = np.zeros((batch_size, n_inf_iter+1, n_steps))
+        step_cond_log_like  = np.zeros((batch_size, n_inf_iter+1, n_steps))
+        step_kl_div         = np.zeros((batch_size, n_inf_iter+1, n_steps))
+        step_output_log_var = np.zeros((batch_size, n_inf_iter+1, n_steps))
+        step_mean_grad      = np.zeros((batch_size, n_inf_iter+1, n_steps))
+        step_log_var_grad   = np.zeros((batch_size, n_inf_iter+1, n_steps))
+        step_post_mean      = np.zeros((batch_size, n_inf_iter+1, n_steps))
+        step_post_log_var   = np.zeros((batch_size, n_inf_iter+1, n_steps))
+        step_prior_mean     = np.zeros((batch_size, n_inf_iter+1, n_steps))
+        step_prior_log_var  = np.zeros((batch_size, n_inf_iter+1, n_steps))
+
         if visualize:
             n_variables = model.latent_levels[0].latent.variable_config['n_variables']
             step_latent_mean = np.zeros((batch_size, n_inf_iter+1, n_steps, n_variables))
@@ -138,10 +147,14 @@ def run(data, model, optimizers=None, visualize=False):
             step_cond_log_like[:, 0, step_ind]  = cond_log_like.data.cpu().numpy()
             step_kl_div[:, 0, step_ind]         = kl[0].data.cpu().numpy()
             if type(model.output_dist) == Normal:
-                if model.output_dist.log_var.data.shape == 3:
+                if len(model.output_dist.log_var.data.shape) == 3:
                     step_output_log_var[:, 0, step_ind] = model.output_dist.log_var.mean(dim=2).mean(dim=1).data.cpu().numpy()
             step_mean_grad[:, 0, step_ind]      = model.latent_levels[0].latent.approx_posterior_gradients()[0].abs().mean(dim=1).data.cpu().numpy()
             step_log_var_grad[:, 0, step_ind]   = model.latent_levels[0].latent.approx_posterior_gradients()[1].abs().mean(dim=1).data.cpu().numpy()
+            step_post_mean[:, 0, step_ind]      = model.latent_levels[0].latent.approx_post.mean.abs().mean(dim=1).data.cpu().numpy()
+            step_post_log_var[:, 0, step_ind]   = model.latent_levels[0].latent.approx_post.log_var.abs().mean(dim=1).data.cpu().numpy()
+            step_prior_mean[:, 0, step_ind]     = model.latent_levels[0].latent.prior.mean.abs().mean(dim=2).mean(dim=1).data.cpu().numpy()
+            step_prior_log_var[:, 0, step_ind]  = model.latent_levels[0].latent.prior.log_var.abs().mean(dim=2).mean(dim=1).data.cpu().numpy()
 
             if visualize:
                 step_latent_mean[:, 0, step_ind] = model.latent_levels[0].latent.approx_post.mean.data.cpu().numpy()
@@ -152,6 +165,10 @@ def run(data, model, optimizers=None, visualize=False):
                     step_output_log_var[:, 0, step_ind] = model.output_dist.log_var.data.cpu().numpy()[:, 0]
 
                 step_data[:, step_ind] = step_batch.data.cpu().numpy()
+
+            if np.isnan(step_mean_grad.mean()) or np.isnan(step_log_var_grad.mean()):
+                print('Inference gradient is nan.')
+                import ipdb; ipdb.set_trace()
 
             # iterative inference
             for inf_it in range(n_inf_iter):
@@ -169,10 +186,14 @@ def run(data, model, optimizers=None, visualize=False):
                 step_cond_log_like[:, inf_it+1, step_ind]  = cond_log_like.data.cpu().numpy()
                 step_kl_div[:, inf_it+1, step_ind]         = kl[0].data.cpu().numpy()
                 if type(model.output_dist) == Normal:
-                    if model.output_dist.log_var.data.shape == 3:
+                    if len(model.output_dist.log_var.data.shape) == 3:
                         step_output_log_var[:, inf_it+1, step_ind] = model.output_dist.log_var.mean(dim=2).mean(dim=1).data.cpu().numpy()
                 step_mean_grad[:, inf_it+1, step_ind]      = model.latent_levels[0].latent.approx_posterior_gradients()[0].abs().mean(dim=1).data.cpu().numpy()
                 step_log_var_grad[:, inf_it+1, step_ind]   = model.latent_levels[0].latent.approx_posterior_gradients()[1].abs().mean(dim=1).data.cpu().numpy()
+                step_post_mean[:, inf_it+1, step_ind]      = model.latent_levels[0].latent.approx_post.mean.abs().mean(dim=1).data.cpu().numpy()
+                step_post_log_var[:, inf_it+1, step_ind]   = model.latent_levels[0].latent.approx_post.log_var.abs().mean(dim=1).data.cpu().numpy()
+                step_prior_mean[:, inf_it+1, step_ind]     = model.latent_levels[0].latent.prior.mean.abs().mean(dim=2).mean(dim=1).data.cpu().numpy()
+                step_prior_log_var[:, inf_it+1, step_ind]  = model.latent_levels[0].latent.prior.log_var.abs().mean(dim=2).mean(dim=1).data.cpu().numpy()
 
                 if visualize:
                     step_latent_mean[:, inf_it+1, step_ind] = model.latent_levels[0].latent.approx_post.mean.data.cpu().numpy()
@@ -180,6 +201,10 @@ def run(data, model, optimizers=None, visualize=False):
 
                     step_output_mean[:, inf_it+1, step_ind] = model.output_dist.mean.data.cpu().numpy()[:, 0]
                     step_output_log_var[:, inf_it+1, step_ind] = model.output_dist.log_var.data.cpu().numpy()[:, 0]
+
+                if np.isnan(step_mean_grad.mean()) or np.isnan(step_log_var_grad.mean()):
+                    print('Inference gradient is nan.')
+                    import ipdb; ipdb.set_trace()
 
                 if np.isnan(step_free_energy[:, inf_it+1, step_ind].mean()):
                     # if nan is encountered, stop training
@@ -256,6 +281,10 @@ def run(data, model, optimizers=None, visualize=False):
         out_dict['out_log_var'][batch_ind]   = step_output_log_var.mean(axis=0)
         out_dict['mean_grad'][batch_ind]     = step_mean_grad.mean(axis=2).mean(axis=0)
         out_dict['log_var_grad'][batch_ind]  = step_log_var_grad.mean(axis=2).mean(axis=0)
+        out_dict['post_mean'][batch_ind]     = step_post_mean.mean(axis=2).mean(axis=0)
+        out_dict['post_log_var'][batch_ind]  = step_post_log_var.mean(axis=2).mean(axis=0)
+        out_dict['prior_mean'][batch_ind]    = step_prior_mean.mean(axis=2).mean(axis=0)
+        out_dict['prior_log_var'][batch_ind] = step_prior_log_var.mean(axis=2).mean(axis=0)
 
     # average over the batch dimension
     for item_key in out_dict:

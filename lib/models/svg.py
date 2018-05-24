@@ -152,6 +152,7 @@ class SVG(LatentVariableModel):
                         inf_config['n_in'] += (self.n_input_channels * 64 * 64)
                     self.inf_model = FullyConnectedNetwork(inf_config)
                     latent_config['n_in'][0] = 1024
+                    latent_config['update_type'] = model_config['update_type']
                 elif self.inference_procedure == 'error':
                     # convolutional observation error encoder
                     obs_error_enc_config = {'n_layers': 3,
@@ -171,6 +172,7 @@ class SVG(LatentVariableModel):
                         inf_config['n_in'] += (self.n_input_channels * 64 * 64)
                     self.inf_model = FullyConnectedNetwork(inf_config)
                     latent_config['n_in'][0] = 1024
+                    latent_config['update_type'] = model_config['update_type']
                 else:
                     raise NotImplementedError
         else:

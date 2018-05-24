@@ -77,6 +77,41 @@ class Plotter(object):
                                            ylabel='KL Divergence (Nats)',
                                            xformat='log', yformat='log')
         ########################################################################
+        # Latent distribution parameter magnitudes
+        ########################################################################
+        it_legend = []
+        for split in ['Train', 'Val']:
+            for it_num in range(train_config['inference_iterations']+1):
+                it_legend.append(split + ', Iteration ' + str(it_num))
+        handle_dict['post_mean'] = plot_line(self.vis,
+                                             nans.repeat(train_config['inference_iterations']+1, 1),
+                                             np.ones((1, 2 * (train_config['inference_iterations']+1))),
+                                             legend=it_legend,
+                                             title='Approx. Posterior Mean Magnitude',
+                                             xlabel='Epochs', ylabel='Mean Mag.',
+                                             xformat='log', yformat='log')
+        handle_dict['post_log_var'] = plot_line(self.vis,
+                                                nans.repeat(train_config['inference_iterations']+1, 1),
+                                                np.ones((1, 2 * (train_config['inference_iterations']+1))),
+                                                legend=it_legend,
+                                                title='Approx. Posterior Log Variance Magnitude',
+                                                xlabel='Epochs', ylabel='Log Variance Mag.',
+                                                xformat='log', yformat='log')
+        handle_dict['prior_mean'] = plot_line(self.vis,
+                                              nans.repeat(train_config['inference_iterations']+1, 1),
+                                              np.ones((1, 2 * (train_config['inference_iterations']+1))),
+                                              legend=it_legend,
+                                              title='Prior Mean Magnitude',
+                                              xlabel='Epochs', ylabel='Mean Mag.',
+                                              xformat='log', yformat='log')
+        handle_dict['prior_log_var'] = plot_line(self.vis,
+                                                 nans.repeat(train_config['inference_iterations']+1, 1),
+                                                 np.ones((1, 2 * (train_config['inference_iterations']+1))),
+                                                 legend=it_legend,
+                                                 title='Prior Log Variance Magnitude',
+                                                 xlabel='Epochs', ylabel='Log Variance Mag.',
+                                                 xformat='log', yformat='log')
+        ########################################################################
         # Inference gradient magnitudes
         ########################################################################
         it_legend = []
@@ -151,6 +186,11 @@ class Plotter(object):
         metrics = [out_dict['free_energy'], out_dict['cond_log_like'], out_dict['kl_div']]
         self._plot_metrics(metrics, train_val)
 
+        # plot the latent parameters
+        latent_params = [out_dict['post_mean'], out_dict['post_log_var'],
+                         out_dict['prior_mean'], out_dict['prior_log_var']]
+        self._plot_latent_params(latent_params, train_val)
+
         # plot the inference gradient magnitudes
         inf_grads = [out_dict['mean_grad'], out_dict['log_var_grad']]
         self._plot_inf_grads(inf_grads, train_val)
@@ -203,6 +243,33 @@ class Plotter(object):
                          np.array([self.epoch]).astype(int),
                          win=self.handle_dict['kl_step'],
                          name=train_val + ', Step ' + str(step_num))
+
+    def _plot_latent_params(self, latent_params, train_val):
+        """
+        Plot latent (approx. posterior and prior) parameter magnitudes.
+
+        Args:
+            latent_params (list): contains numpy arrays with parameter mags
+            train_val (str): either 'Train' or 'Val', determines plotting behavior
+        """
+        post_mean, post_log_var, prior_mean, prior_log_var = latent_params
+        for it_num in range(train_config['inference_iterations']+1):
+            update_trace(self.vis, np.array([post_mean[it_num]]),
+                         np.array([self.epoch]).astype(int),
+                         win=self.handle_dict['post_mean'],
+                         name=train_val + ', Iteration ' + str(it_num))
+            update_trace(self.vis, np.array([post_log_var[it_num]]),
+                         np.array([self.epoch]).astype(int),
+                         win=self.handle_dict['post_log_var'],
+                         name=train_val + ', Iteration ' + str(it_num))
+            update_trace(self.vis, np.array([prior_mean[it_num]]),
+                         np.array([self.epoch]).astype(int),
+                         win=self.handle_dict['prior_mean'],
+                         name=train_val + ', Iteration ' + str(it_num))
+            update_trace(self.vis, np.array([prior_log_var[it_num]]),
+                         np.array([self.epoch]).astype(int),
+                         win=self.handle_dict['prior_log_var'],
+                         name=train_val + ', Iteration ' + str(it_num))
 
     def _plot_inf_grads(self, inf_grads, train_val):
         """

@@ -103,10 +103,12 @@ class VRNN(LatentVariableModel):
                 if self.inference_procedure == 'direct':
                     input_dim = x_dim
                 elif self.inference_procedure == 'gradient':
+                    latent_config['update_type'] = model_config['update_type']
                     input_dim = 4 * z_dim
                     if model_config['concat_observation']:
                         input_dim += x_dim
                 elif self.inference_procedure == 'error':
+                    latent_config['update_type'] = model_config['update_type']
                     input_dim = x_dim + 3 * z_dim
                     if model_config['concat_observation']:
                         input_dim += x_dim
@@ -300,9 +302,9 @@ class VRNN(LatentVariableModel):
         if self.model_config['global_output_log_var']:
             b, s = output.data.shape[0], output.data.shape[1]
             log_var = self.output_log_var.view(1, 1, -1).repeat(b, s, 1)
-            self.output_dist.log_var = torch.clamp(log_var, min=-20)
+            self.output_dist.log_var = torch.clamp(log_var, min=-20., max=5)
         else:
-            self.output_dist.log_var = torch.clamp(self.output_log_var(output), min=-20.)
+            self.output_dist.log_var = torch.clamp(self.output_log_var(output), min=-20., max=5)
 
         return self.output_dist.sample()
 

@@ -94,6 +94,7 @@ class SRNN(LatentVariableModel):
             if model_config['concat_observation']:
                 inf_model_config['n_in'] += x_dim
             inf_model_config['connection_type'] = 'highway'
+            latent_config['update_type'] = model_config['update_type']
         else:
             inf_model_units = n_units
             inf_model_config = {'n_in': lstm_units + x_dim, 'n_units': n_units,

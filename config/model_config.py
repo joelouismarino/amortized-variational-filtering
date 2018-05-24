@@ -7,9 +7,11 @@ model_config = {
 
 assert model_config['inference_procedure'] in ['direct', 'gradient', 'error', 'sgd']
 
+# update type for iterative inference ('highway', 'learned_sgd')
 # whether or not to concatenate the observation to inference model input
 # normalization type for the inputs ('layer', 'batch', None)
 if model_config['inference_procedure'] in ['gradient', 'error']:
+    model_config['update_type'] = 'learned_sgd'
     model_config['concat_observation'] = False
     model_config['input_normalization'] = 'layer'
     model_config['norm_parameters'] = True

@@ -23,15 +23,17 @@ class FullyConnectedLatentVariable(LatentVariable):
         Method to construct the latent variable from the latent_config dictionary
         """
         self.inference_procedure = latent_config['inference_procedure']
+        if self.inference_procedure in ['gradient', 'error']:
+            self.update_type = latent_config['update_type']
         n_variables = latent_config['n_variables']
         n_inputs = latent_config['n_in']
 
         if self.inference_procedure in ['direct', 'gradient', 'error']:
             # approximate posterior inputs
-            self.approx_post_mean = FullyConnectedLayer({'n_in': n_inputs[0],
-                                                         'n_out': n_variables})
-            self.approx_post_log_var = FullyConnectedLayer({'n_in': n_inputs[0],
-                                                            'n_out': n_variables})
+            self.inf_mean_output = FullyConnectedLayer({'n_in': n_inputs[0],
+                                                        'n_out': n_variables})
+            self.inf_log_var_output = FullyConnectedLayer({'n_in': n_inputs[0],
+                                                           'n_out': n_variables})
         if self.inference_procedure in ['gradient', 'error']:
             self.approx_post_mean_gate = FullyConnectedLayer({'n_in': n_inputs[0],
                                                               'n_out': n_variables,
@@ -62,21 +64,30 @@ class FullyConnectedLatentVariable(LatentVariable):
             input (Tensor): input to the inference procedure
         """
         if self.inference_procedure in ['direct', 'gradient', 'error']:
-            approx_post_mean = self.approx_post_mean(input)
-            approx_post_log_var = self.approx_post_log_var(input)
+            approx_post_mean = self.inf_mean_output(input)
+            approx_post_log_var = self.inf_log_var_output(input)
         if self.inference_procedure == 'direct':
             self.approx_post.mean = approx_post_mean
-            self.approx_post.log_var = torch.clamp(approx_post_log_var, -15, 15)
+            self.approx_post.log_var = torch.clamp(approx_post_log_var, -15, 5)
         elif self.inference_procedure in ['gradient', 'error']:
-            approx_post_mean_gate = self.approx_post_mean_gate(input)
-            self.approx_post.mean = approx_post_mean_gate * self.approx_post.mean.detach() \
-                                    + (1 - approx_post_mean_gate) * approx_post_mean
-            approx_post_log_var_gate = self.approx_post_log_var_gate(input)
-            self.approx_post.log_var = torch.clamp(approx_post_log_var_gate * self.approx_post.log_var.detach() \
-                                       + (1 - approx_post_log_var_gate) * approx_post_log_var, -15, 15)
+            if self.update_type == 'highway':
+                # gated highway update
+                approx_post_mean_gate = self.approx_post_mean_gate(input)
+                self.approx_post.mean = approx_post_mean_gate * self.approx_post.mean.detach() \
+                                        + (1 - approx_post_mean_gate) * approx_post_mean
+                approx_post_log_var_gate = self.approx_post_log_var_gate(input)
+                self.approx_post.log_var = torch.clamp(approx_post_log_var_gate * self.approx_post.log_var.detach() \
+                                           + (1 - approx_post_log_var_gate) * approx_post_log_var, -15, 5)
+            elif self.update_type == 'learned_sgd':
+                # SGD style update with learned learning rate and offset
+                mean_grad, log_var_grad = self.approx_posterior_gradients()
+                mean_lr = self.approx_post_mean_gate(input)
+                log_var_lr = self.approx_post_log_var_gate(input)
+                self.approx_post.mean = self.approx_post.mean.detach() - mean_lr * mean_grad + approx_post_mean
+                self.approx_post.log_var = torch.clamp(self.approx_post.log_var.detach() - log_var_lr * log_var_grad + approx_post_log_var, -15, 5)
         elif self.inference_procedure == 'sgd':
             self.approx_post.mean = self.approx_post.mean.detach() - self.learning_rate * input[0]
-            self.approx_post.log_var = torch.clamp(self.approx_post.log_var.detach() - self.learning_rate * input[1], -15, 15)
+            self.approx_post.log_var = torch.clamp(self.approx_post.log_var.detach() - self.learning_rate * input[1], -15, 5)
             self.approx_post.mean.requires_grad = True
             self.approx_post.log_var.requires_grad = True
         else:
@@ -99,7 +110,7 @@ class FullyConnectedLatentVariable(LatentVariable):
             b, s, n = input.data.shape
             input = input.view(b * s, n)
             self.prior.mean = self.prior_mean(input).view(b, s, -1)
-            self.prior.log_var = torch.clamp(self.prior_log_var(input).view(b, s, -1), -15, 15)
+            self.prior.log_var = torch.clamp(self.prior_log_var(input).view(b, s, -1), -15, 5)
         dist = self.prior if gen else self.approx_post
         sample = dist.sample(n_samples, resample=True)
         sample = sample.detach() if self.detach else sample
@@ -156,8 +167,8 @@ class FullyConnectedLatentVariable(LatentVariable):
         Method to obtain inference parameters.
         """
         params = nn.ParameterList()
-        params.extend(list(self.approx_post_mean.parameters()))
-        params.extend(list(self.approx_post_log_var.parameters()))
+        params.extend(list(self.inf_mean_output.parameters()))
+        params.extend(list(self.inf_log_var_output.parameters()))
         if self.inference_procedure != 'direct':
             params.extend(list(self.approx_post_mean_gate.parameters()))
             params.extend(list(self.approx_post_log_var_gate.parameters()))

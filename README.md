@@ -9,7 +9,7 @@ PyTorch implementation of (amortized) variational filtering
 - [x] Implement other data loading options (directory of files).
 - [x] Load standard benchmark sequence data sets.
 - [x] Rewrite TIMIT dataset.
-- [ ] Get Blizzard dataset working.
+- [x] Get Blizzard dataset working.
 - [ ] Get IAM OnDB dataset working.
 - [ ] Get YouTube dataset working again. Make closer to PyTorch dataset.
 
@@ -24,7 +24,7 @@ PyTorch implementation of (amortized) variational filtering
 - [x] Use CDF for Gaussian conditional log likelihood evaluation.
 - [x] Implement SVG
 - [x] Implement VRNN
-- [ ] Implement SRNN
+- [x] Implement SRNN
 - [ ] Implement DKS
 
 ## Overall To-Do:
