@@ -4,6 +4,7 @@ from lib.distributions import Normal
 from latent_variable import LatentVariable
 from lib.modules.layers import FullyConnectedLayer
 from lib.modules.networks import FullyConnectedNetwork
+from lib.modules.misc import LayerNorm
 
 
 class FullyConnectedLatentVariable(LatentVariable):
@@ -27,6 +28,9 @@ class FullyConnectedLatentVariable(LatentVariable):
             self.update_type = latent_config['update_type']
         n_variables = latent_config['n_variables']
         n_inputs = latent_config['n_in']
+        self.normalize_samples = latent_config['normalize_samples']
+        if self.normalize_samples:
+            self.normalizer = LayerNorm()
 
         if self.inference_procedure in ['direct', 'gradient', 'error']:
             # approximate posterior inputs
@@ -92,6 +96,11 @@ class FullyConnectedLatentVariable(LatentVariable):
             self.approx_post.log_var.requires_grad = True
         else:
             raise NotImplementedError
+
+        if self.normalize_samples:
+            # apply layer normalization to the approximate posterior means
+            self.approx_post.mean = self.normalizer(self.approx_post.mean)
+
         # retain the gradients (for inference)
         self.approx_post.mean.retain_grad()
         self.approx_post.log_var.retain_grad()

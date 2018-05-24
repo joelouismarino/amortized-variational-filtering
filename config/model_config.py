@@ -3,6 +3,7 @@ model_config = {
     'inference_procedure': 'gradient',
     'modified': True,
     'global_output_log_var': False,
+    'normalize_latent_samples': True,
 }
 
 assert model_config['inference_procedure'] in ['direct', 'gradient', 'error', 'sgd']

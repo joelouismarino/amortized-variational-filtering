@@ -135,6 +135,7 @@ class VRNN(LatentVariableModel):
         level_config['generative_config'] = gen_config
         latent_config['n_variables'] = z_dim
         latent_config['n_in'] = (encoder_units, prior_units)
+        latent_config['normalize_samples'] = model_config['normalize_latent_samples']
         # latent_config['n_in'] = (encoder_units+input_dim, prior_units)
         level_config['latent_config'] = latent_config
         latent = FullyConnectedLatentLevel(level_config)
