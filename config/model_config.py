@@ -1,9 +1,9 @@
 model_config = {
     'architecture': 'vrnn',
-    'inference_procedure': 'gradient',
-    'modified': True,
+    'inference_procedure': 'direct',
+    'modified': False,
     'global_output_log_var': False,
-    'normalize_latent_samples': True,
+    'normalize_latent_samples': False,
 }
 
 assert model_config['inference_procedure'] in ['direct', 'gradient', 'error', 'sgd']
