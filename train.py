@@ -1,3 +1,6 @@
+import sys
+
+import json
 import torch
 from config import run_config, train_config, data_config, model_config
 from util.logging import Logger
@@ -53,4 +56,10 @@ def start_training(run_config, train_config, data_config, model_config):
 
 
 if __name__=='__main__':
+    if sys.argv[1:]:
+        run_config, train_config, data_config, model_config = sys.argv[1:]
+        run_config = json.loads(run_config)
+        train_config = json.loads(train_config)
+        data_config = json.loads(data_config)
+        model_config = json.loads(model_config)
     start_training(run_config, train_config, data_config, model_config)
