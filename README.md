@@ -35,3 +35,4 @@ PyTorch implementation of (amortized) variational filtering
 - [ ] Output video, audio, handwriting reconstructions.
 - [ ] Option to load config from experiment directory
 - [ ] Plot losses on same plot when resuming a checkpoint.
+- [ ] Fix all random seeds.
