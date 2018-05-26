@@ -33,4 +33,4 @@ model.cuda()
 
 model.eval()
 
-output = eval_model(test_data, model)
+output = eval_model(test_data, model, train_config)

@@ -20,7 +20,7 @@ def start_training(run_config, train_config, data_config, model_config):
 
     # initialize logging and plotting
     logger = Logger(run_config)
-    plotter = Plotter(logger.log_dir)
+    plotter = Plotter(logger.log_dir, run_config, train_config, model_config, data_config)
 
     # load the data
     train_data, val_data, test_data = load_data(data_config, train_config['batch_size'])
@@ -42,11 +42,11 @@ def start_training(run_config, train_config, data_config, model_config):
 
     while True:
         # training
-        out = train(train_data, model, optimizers)
+        out = train(train_data, model, optimizers, train_config, data_config)
         logger.log(out, 'Train'); plotter.plot(out, 'Train')
         if val_data:
             # validation
-            out = validate(val_data, model)
+            out = validate(val_data, model, train_config, data_config)
             logger.log(out, 'Val'); plotter.plot(out, 'Val')
         if logger.save_epoch():
             logger.save_checkpoint(model, optimizers)

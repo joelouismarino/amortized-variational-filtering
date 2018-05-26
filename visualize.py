@@ -41,7 +41,7 @@ if run_config['resume_path']:
 print('Putting the model on the GPU...')
 
 model.cuda()
-out = visualize(data, model)
+out = visualize(data, model, train_config, data_config)
 
 
 ################################################################################

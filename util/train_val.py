@@ -1,34 +1,33 @@
 from torch.autograd import Variable
 from lib.distributions import Normal
-from config import train_config, data_config
 import numpy as np
 
 global epoch
 epoch = 0
 
 
-def train(data, model, optimizers):
+def train(data, model, optimizers, train_config, data_config):
     """
     Function to train the model on data.
     """
-    return run(data, model, optimizers)
+    return run(data, model, train_config, data_config, optimizers=optimizers)
 
 
-def validate(data, model):
+def validate(data, model, train_config, data_config):
     """
     Function to validate the model on data.
     """
-    return run(data, model)
+    return run(data, model, train_config, data_config)
 
 
-def visualize(data, model):
+def visualize(data, model, train_config, data_config):
     """
     Function to visualize the model on data.
     """
-    return run(data, model, visualize=True)
+    return run(data, model, train_config, data_config, visualize=True)
 
 
-def run(data, model, optimizers=None, visualize=False):
+def run(data, model, train_config, data_config, optimizers=None, visualize=False):
     """
     Function to train/validate the model on data.
 

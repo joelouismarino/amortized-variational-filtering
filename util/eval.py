@@ -1,10 +1,9 @@
 from torch.autograd import Variable
 from lib.distributions import Normal
-from config import train_config, data_config
 import numpy as np
 
 
-def eval_model(data, model, visualize=False):
+def eval_model(data, model, train_config, visualize=False):
     """
     Function to evaluate the model on data.
 
