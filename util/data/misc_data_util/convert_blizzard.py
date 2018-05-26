@@ -4,7 +4,6 @@ import random
 random.seed(1234)
 import numpy as np
 import cPickle
-from config import run_config
 try:
     import librosa
 except ImportError:
