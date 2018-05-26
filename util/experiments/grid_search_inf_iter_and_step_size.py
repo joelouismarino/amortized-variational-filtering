@@ -18,9 +18,9 @@ train_config = {
     'batch_size': 64,
     'sequence_samples': 1,
     'optimizer': 'adam',
-    'optimize_inf_online': False,
-    'inference_learning_rate': 0.001,
-    'generation_learning_rate': 0.001,
+    'optimize_inf_online': True,
+    'inference_learning_rate': 0.0001,
+    'generation_learning_rate': 0.0001,
     'clip_grad_norm': None,
     'kl_annealing_epochs': 0,
 }
@@ -28,24 +28,23 @@ train_config = {
 data_config = {
     'data_path': '/home/ubuntu/datasets/',
     'dataset_name': 'timit',
-    'data_type': 'audio', # video, audio, tracking, other
+    'data_type': 'audio',  # video, audio, tracking, other
     'sequence_length': 40,
 }
 clean_data_config(data_config)
 
 model_config = {
     'architecture': 'vrnn',
-    'inference_procedure': 'direct',
-    'modified': False,
+    'inference_procedure': 'gradient',
+    'modified': True,
     'global_output_log_var': False,
     'normalize_latent_samples': False,
 }
 clean_model_config(model_config)
 
-
-cuda_device = cycle(range(0,8))
+cuda_device = cycle(range(0, 8))
 for step_samples in [1, 2, 4, 8, 16]:
-    for inference_iterations in [1, 2, 4, 8, 16]:
+    for inference_iterations in [1, 2, 4, 8]:
         train_config['step_samples'] = step_samples
         train_config['inference_iterations'] = inference_iterations
         run_config['cuda_device'] = cuda_device.next()
@@ -55,9 +54,7 @@ for step_samples in [1, 2, 4, 8, 16]:
         t = json.dumps(train_config)
         d = json.dumps(data_config)
         m = json.dumps(model_config)
-        cmd = ['python', os.path.join(os.path.abspath('.'), 'train.py'), r, t, d, m]
-        print('Running: {}'.format(' '.join(cmd)))
-        subprocess.Popen(['python', os.path.join(os.path.abspath('.'), 'train.py'), r, t, d, m],
-                         env=os.environ.copy(),
-                         stdout=open(os.devnull, 'w'))
+        cmd = "python {} '{}' '{}' '{}' '{}'".format(os.path.join(os.path.abspath('.'), 'train.py'), r, t, d, m)
+        print('Running: {}'.format(cmd))
+        subprocess.Popen(cmd, shell=True, env=os.environ.copy()) #, stdout=open(os.devnull, 'w')
         time.sleep(1)
