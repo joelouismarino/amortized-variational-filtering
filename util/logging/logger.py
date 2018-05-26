@@ -25,7 +25,11 @@ class Logger(object):
                 raise Exception('Experiment folder ' + self.log_dir + ' not found.')
         else:
             # start a new experiment
-            self.log_dir = strftime("%b_%d_%Y_%H_%M_%S") + '/'
+            if 'log_dir' not in run_config:
+                self.log_dir = ''
+            else:
+                self.log_dir = run_config['log_dir']
+            self.log_dir += strftime("%b_%d_%Y_%H_%M_%S") + '/'
             self.log_path = os.path.join(log_root, self.log_dir)
             os.makedirs(self.log_path)
             os.system("rsync -au --include '*/' --include '*.py' --exclude '*' . " + self.log_path + "source")
