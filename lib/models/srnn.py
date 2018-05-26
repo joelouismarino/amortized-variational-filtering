@@ -34,6 +34,7 @@ class SRNN(LatentVariableModel):
         latent_config = {}
         level_config = {}
         latent_config['inference_procedure'] = self.inference_procedure
+        latent_config['normalize_samples'] = model_config['normalize_latent_samples']
         # hard coded because we handle inference here in the model
         level_config['inference_procedure'] = 'direct'
 

@@ -1,5 +1,5 @@
 data_config = {
-    'data_path': '/media/joe/SSD/datasets/',
+    'data_path': '/home/ubuntu/datasets/',
     'dataset_name': 'timit',
     'data_type': 'audio', # video, audio, tracking, other
     'sequence_length': 40,
