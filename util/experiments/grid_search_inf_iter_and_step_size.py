@@ -9,7 +9,6 @@ from config.data_config import clean_data_config
 from config.model_config import clean_model_config
 
 run_config = {
-    'cuda_device': 1,
     'save_iter': 100,
     'resume_path': None,
     'log_root_path': '/home/ubuntu/logs/avf_logs/grid_search_inf_iter_and_step_size',
@@ -17,9 +16,7 @@ run_config = {
 
 train_config = {
     'batch_size': 64,
-    'inference_iterations': 1,
     'sequence_samples': 1,
-    'step_samples': 1,
     'optimizer': 'adam',
     'optimize_inf_online': False,
     'inference_learning_rate': 0.001,
@@ -30,14 +27,14 @@ train_config = {
 
 data_config = {
     'data_path': '/home/ubuntu/datasets/',
-    'dataset_name': 'piano_midi',
-    'data_type': 'other', # video, audio, tracking, other
-    'sequence_length': 20,
+    'dataset_name': 'timit',
+    'data_type': 'audio', # video, audio, tracking, other
+    'sequence_length': 40,
 }
 clean_data_config(data_config)
 
 model_config = {
-    'architecture': 'srnn',
+    'architecture': 'vrnn',
     'inference_procedure': 'direct',
     'modified': False,
     'global_output_log_var': False,
