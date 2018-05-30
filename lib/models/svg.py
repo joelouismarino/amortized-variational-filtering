@@ -32,7 +32,7 @@ class SVG(LatentVariableModel):
 
         level_config = {}
         latent_config = {}
-
+        latent_config['normalize_samples'] = model_config['normalize_latent_samples']
         latent_config['inference_procedure'] = self.inference_procedure
          # hard coded because we handle inference here in the model
         level_config['inference_procedure'] = 'direct'
@@ -73,7 +73,7 @@ class SVG(LatentVariableModel):
                 output_channels = 2 * self.n_input_channels
             self.decoder = decoder(128, output_channels)
             self.output_dist = Normal()
-            latent_config['n_variables'] = 32
+            latent_config['n_variables'] = 512
             if self.modified:
                 if self.inference_procedure == 'direct':
                     # another convolutional encoder
@@ -97,6 +97,7 @@ class SVG(LatentVariableModel):
                         inf_config['n_in'] += (self.n_input_channels * 64 * 64)
                     self.inf_model = FullyConnectedNetwork(inf_config)
                     latent_config['n_in'][0] = n_units
+                    latent_config['update_type'] = model_config['update_type']
                 elif self.inference_procedure == 'error':
                     # convolutional observation error encoder
                     obs_error_enc_config = {'n_layers': 3,
@@ -116,6 +117,7 @@ class SVG(LatentVariableModel):
                         inf_config['n_in'] += (self.n_input_channels * 64 * 64)
                     self.inf_model = FullyConnectedNetwork(inf_config)
                     latent_config['n_in'][0] = 1024
+                    latent_config['update_type'] = model_config['update_type']
                 else:
                     raise NotImplementedError
 
@@ -324,7 +326,7 @@ class SVG(LatentVariableModel):
 
         # get the previous h and skip
         prev_h = self._prev_h.unsqueeze(1)
-        prev_skip = [_prev_skip.repeat(n_samples, 1, 1, 1) for _prev_skip in self._prev_skip]
+        prev_skip = [0. * _prev_skip.repeat(n_samples, 1, 1, 1) for _prev_skip in self._prev_skip]
 
         # detach prev_h and prev_skip if necessary
         if self._detach_h:

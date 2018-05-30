@@ -166,8 +166,8 @@ class SRNN(LatentVariableModel):
             if self.model_config['input_normalization'] in ['layer', 'batch']:
                 norm_dim = 0 if self.model_config['input_normalization'] == 'batch' else 1
                 for ind, error in enumerate(errors):
-                    mean = error.mean(dim=0, keepdim=True)
-                    std = error.std(dim=0, keepdim=True)
+                    mean = error.mean(dim=norm_dim, keepdim=True)
+                    std = error.std(dim=norm_dim, keepdim=True)
                     errors[ind] = (error - mean) / (std + 1e-7)
             errors = torch.cat(errors, dim=1)
 

@@ -5,6 +5,8 @@ from util.data.load_data import load_data
 from lib.models import load_model
 from util.eval import eval_model
 
+from util.train_val import validate
+
 # hack to prevent the data loader from going on GPU 0
 import os
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
@@ -34,3 +36,5 @@ model.cuda()
 model.eval()
 
 output = eval_model(test_data, model, train_config)
+
+# val_output = validate(val_data, model, train_config, data_config)

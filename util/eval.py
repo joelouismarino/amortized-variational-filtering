@@ -124,6 +124,8 @@ def eval_model(data, model, train_config, visualize=False):
             # form the prior on the next step
             model.step()
 
+        # import ipdb; ipdb.set_trace()
+
         out_dict['free_energy'][example_ind]   = step_free_energy.mean(axis=1)
         out_dict['cond_log_like'][example_ind] = step_cond_log_like.mean(axis=1)
         out_dict['kl_div'][example_ind]        = step_kl_div.mean(axis=1)

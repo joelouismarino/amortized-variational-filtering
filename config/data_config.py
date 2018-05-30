@@ -1,8 +1,8 @@
 data_config = {
-    'data_path': '/home/ubuntu/datasets/',
-    'dataset_name': 'timit',
-    'data_type': 'audio', # video, audio, tracking, other
-    'sequence_length': 40,
+    'data_path': '/media/joe/SSD/datasets/',
+    'dataset_name': 'jsb_chorales',
+    'data_type': 'other', # video, audio, tracking, other
+    'sequence_length': 25,
 }
 
 def clean_data_config(data_config):
