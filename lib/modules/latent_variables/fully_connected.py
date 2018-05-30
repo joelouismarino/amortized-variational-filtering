@@ -34,14 +34,14 @@ class FullyConnectedLatentVariable(LatentVariable):
 
         if self.inference_procedure in ['direct', 'gradient', 'error']:
             # approximate posterior inputs
-            # self.inf_mean_output = FullyConnectedLayer({'n_in': n_inputs[0],
-            #                                             'n_out': n_variables})
-            # self.inf_log_var_output = FullyConnectedLayer({'n_in': n_inputs[0],
-            #                                                'n_out': n_variables})
-            self.approx_post_mean = FullyConnectedLayer({'n_in': n_inputs[0],
+            self.inf_mean_output = FullyConnectedLayer({'n_in': n_inputs[0],
                                                         'n_out': n_variables})
-            self.approx_post_log_var = FullyConnectedLayer({'n_in': n_inputs[0],
+            self.inf_log_var_output = FullyConnectedLayer({'n_in': n_inputs[0],
                                                            'n_out': n_variables})
+            # self.approx_post_mean = FullyConnectedLayer({'n_in': n_inputs[0],
+            #                                             'n_out': n_variables})
+            # self.approx_post_log_var = FullyConnectedLayer({'n_in': n_inputs[0],
+            #                                                'n_out': n_variables})
         if self.inference_procedure in ['gradient', 'error']:
             self.approx_post_mean_gate = FullyConnectedLayer({'n_in': n_inputs[0],
                                                               'n_out': n_variables,
@@ -72,10 +72,10 @@ class FullyConnectedLatentVariable(LatentVariable):
             input (Tensor): input to the inference procedure
         """
         if self.inference_procedure in ['direct', 'gradient', 'error']:
-            # approx_post_mean = self.inf_mean_output(input)
-            # approx_post_log_var = self.inf_log_var_output(input)
-            approx_post_mean = self.approx_post_mean(input)
-            approx_post_log_var = self.approx_post_log_var(input)
+            approx_post_mean = self.inf_mean_output(input)
+            approx_post_log_var = self.inf_log_var_output(input)
+            # approx_post_mean = self.approx_post_mean(input)
+            # approx_post_log_var = self.approx_post_log_var(input)
         if self.inference_procedure == 'direct':
             self.approx_post.mean = approx_post_mean
             self.approx_post.log_var = torch.clamp(approx_post_log_var, -15, 5)
@@ -182,10 +182,10 @@ class FullyConnectedLatentVariable(LatentVariable):
         Method to obtain inference parameters.
         """
         params = nn.ParameterList()
-        # params.extend(list(self.inf_mean_output.parameters()))
-        # params.extend(list(self.inf_log_var_output.parameters()))
-        params.extend(list(self.approx_post_mean.parameters()))
-        params.extend(list(self.approx_post_log_var.parameters()))
+        params.extend(list(self.inf_mean_output.parameters()))
+        params.extend(list(self.inf_log_var_output.parameters()))
+        # params.extend(list(self.approx_post_mean.parameters()))
+        # params.extend(list(self.approx_post_log_var.parameters()))
         if self.inference_procedure != 'direct':
             params.extend(list(self.approx_post_mean_gate.parameters()))
             params.extend(list(self.approx_post_log_var_gate.parameters()))

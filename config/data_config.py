@@ -1,8 +1,8 @@
 data_config = {
     'data_path': '/media/joe/SSD/datasets/',
-    'dataset_name': 'kth_actions',
-    'data_type': 'video', # video, audio, tracking, other
-    'sequence_length': 21,
+    'dataset_name': 'timit',
+    'data_type': 'audio', # video, audio, tracking, other
+    'sequence_length': 40,
 }
 
 def clean_data_config(data_config):

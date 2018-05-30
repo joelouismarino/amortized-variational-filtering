@@ -1,5 +1,5 @@
 model_config = {
-    'architecture': 'svg',
+    'architecture': 'vrnn',
     'inference_procedure': 'direct',
     'modified': False,
     'global_output_log_var': False,
@@ -13,7 +13,7 @@ def clean_model_config(model_config):
     # whether or not to concatenate the observation to inference model input
     # normalization type for the inputs ('layer', 'batch', None)
     if model_config['inference_procedure'] in ['gradient', 'error']:
-        model_config['update_type'] = 'highway'
+        model_config['update_type'] = 'learned_sgd'
         model_config['concat_observation'] = False
         model_config['input_normalization'] = 'layer'
         model_config['norm_parameters'] = True

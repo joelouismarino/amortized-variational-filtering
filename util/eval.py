@@ -13,6 +13,7 @@ def eval_model(data, model, train_config, visualize=False):
     """
 
     backward = True
+    training_batch_size = 64
 
     out_dict = {}
     n_examples = len(data)
@@ -38,9 +39,10 @@ def eval_model(data, model, train_config, visualize=False):
         print('Example: ' + str(example_ind+1) + ' of ' + str(len(data)))
 
         # re-initialize the model from the data
-        example = Variable(example.cuda())
-        # example = Variable(example.cuda(), volatile=True)
-        # batch = Variable(batch)
+        if backward:
+            example = Variable(example.cuda())
+        else:
+            example = Variable(example.cuda(), volatile=True)
         model.re_init(example[0])
 
         n_steps = example.data.shape[0]
@@ -68,7 +70,7 @@ def eval_model(data, model, train_config, visualize=False):
             # evaluate the free energy to get gradients, errors
             free_energy, cond_log_like, kl = model.losses(step_example, averaged=False)
             if backward:
-                free_energy.mean(dim=0).backward(retain_graph=True)
+                (free_energy / training_batch_size).mean(dim=0).backward(retain_graph=True)
 
             step_free_energy[0, step_ind]    = free_energy.data.cpu().numpy()
             step_cond_log_like[0, step_ind]  = cond_log_like.data.cpu().numpy()
@@ -94,7 +96,7 @@ def eval_model(data, model, train_config, visualize=False):
                 # evaluate the free energy to get gradients, errors
                 free_energy, cond_log_like, kl = model.losses(step_example, averaged=False)
                 if backward:
-                    free_energy.mean(dim=0).backward(retain_graph=True)
+                    (free_energy / training_batch_size).mean(dim=0).backward(retain_graph=True)
 
                 step_free_energy[inf_it+1, step_ind]    = free_energy.data.cpu().numpy()
                 step_cond_log_like[inf_it+1, step_ind]  = cond_log_like.data.cpu().numpy()
