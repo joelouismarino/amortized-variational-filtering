@@ -1,8 +1,8 @@
 data_config = {
     'data_path': '/media/joe/SSD/datasets/',
-    'dataset_name': 'jsb_chorales',
-    'data_type': 'other', # video, audio, tracking, other
-    'sequence_length': 25,
+    'dataset_name': 'kth_actions',
+    'data_type': 'video', # video, audio, tracking, other
+    'sequence_length': 21,
 }
 
 def clean_data_config(data_config):

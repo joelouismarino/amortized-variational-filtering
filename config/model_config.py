@@ -1,7 +1,7 @@
 model_config = {
-    'architecture': 'srnn',
-    'inference_procedure': 'gradient',
-    'modified': True,
+    'architecture': 'svg',
+    'inference_procedure': 'direct',
+    'modified': False,
     'global_output_log_var': False,
     'normalize_latent_samples': False,
 }

@@ -1,5 +1,5 @@
 train_config = {
-    'batch_size': 1,
+    'batch_size': 20,
     'inference_iterations': 1,
     'sequence_samples': 1,
     'step_samples': 1,
