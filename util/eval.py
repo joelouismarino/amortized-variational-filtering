@@ -3,7 +3,7 @@ from lib.distributions import Normal
 import numpy as np
 
 
-def eval_model(data, model, train_config, visualize=False):
+def eval_model(data, model, train_config, training_batch_size, visualize=False):
     """
     Function to evaluate the model on data.
 
@@ -13,7 +13,6 @@ def eval_model(data, model, train_config, visualize=False):
     """
 
     backward = True
-    training_batch_size = 64
 
     out_dict = {}
     n_examples = len(data)

@@ -15,15 +15,19 @@ class ConvolutionalLayer(Layer):
                              initialize
     """
     def __init__(self, layer_config):
-        super(Convolutional, self).__init__(layer_config)
+        super(ConvolutionalLayer, self).__init__(layer_config)
         self._construct(layer_config)
 
     def _construct(self, layer_config):
 
         n_in = layer_config['n_in']
-        n_out = layer_config['n_out']
+        n_out = layer_config['n_filters']
         filter_size = layer_config['filter_size']
-        self.conv = nn.Conv2d(n_in, n_out, filter_size, padding=int(filter_size)/2)
+        stride=1
+        if 'stride' in layer_config:
+            if layer_config['stride']:
+                stride = layer_config['stride']
+        self.conv = nn.Conv2d(n_in, n_out, filter_size, padding=int(filter_size)/2, stride=stride)
         self.bn = lambda x: x
         if 'batch_norm' in layer_config:
             if layer_config['batch_norm']:
@@ -56,7 +60,8 @@ class ConvolutionalLayer(Layer):
 
         self.dropout = lambda x: x
         if 'dropout' in layer_config:
-            self.dropout = nn.Dropout2d(layer_config['dropout'])
+            if layer_config['dropout'] is not None:
+                self.dropout = nn.Dropout2d(layer_config['dropout'])
 
         if 'initialize' in layer_config:
             initialize = layer_config['initialize']
@@ -77,7 +82,7 @@ class ConvolutionalLayer(Layer):
             else:
                 raise Exception('Parameter initialization ' + str(initialize) + ' not found.')
         else:
-            init.normal(self.conv.weight)
+            init.xavier_normal(self.conv.weight, gain=init_gain)
 
         if 'batch_norm' in layer_config:
             if layer_config['batch_norm']:

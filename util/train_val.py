@@ -1,5 +1,6 @@
 from torch.autograd import Variable
 from lib.distributions import Normal
+from util.misc import reduce_mean
 import numpy as np
 
 global epoch
@@ -53,7 +54,8 @@ def run(data, model, train_config, data_config, optimizers=None, visualize=False
         anneal_weight = 1.
 
     out_dict = {}
-    n_batches = len(data)
+    # n_batches = len(data)
+    n_batches = min(len(data), 10)
     n_steps = data_config['sequence_length']-1
     n_inf_iter = train_config['inference_iterations']
     assert n_inf_iter > 0, 'Number of inference iterations must be positive.'
@@ -104,7 +106,8 @@ def run(data, model, train_config, data_config, optimizers=None, visualize=False
         step_prior_log_var  = np.zeros((batch_size, n_inf_iter+1, n_steps))
 
         if visualize:
-            n_variables = model.latent_levels[0].latent.variable_config['n_variables']
+            # n_variables = model.latent_levels[0].latent.variable_config['n_variables']
+            n_variables = 1
             step_latent_mean = np.zeros((batch_size, n_inf_iter+1, n_steps, n_variables))
             step_latent_log_var = np.zeros((batch_size, n_inf_iter+1, n_steps, n_variables))
 
@@ -147,17 +150,17 @@ def run(data, model, train_config, data_config, optimizers=None, visualize=False
             step_kl_div[:, 0, step_ind]         = kl[0].data.cpu().numpy()
             if type(model.output_dist) == Normal:
                 if len(model.output_dist.log_var.data.shape) == 3:
-                    step_output_log_var[:, 0, step_ind] = model.output_dist.log_var.mean(dim=2).mean(dim=1).data.cpu().numpy()
-            step_mean_grad[:, 0, step_ind]      = model.latent_levels[0].latent.approx_posterior_gradients()[0].abs().mean(dim=1).data.cpu().numpy()
-            step_log_var_grad[:, 0, step_ind]   = model.latent_levels[0].latent.approx_posterior_gradients()[1].abs().mean(dim=1).data.cpu().numpy()
-            step_post_mean[:, 0, step_ind]      = model.latent_levels[0].latent.approx_post.mean.abs().mean(dim=1).data.cpu().numpy()
-            step_post_log_var[:, 0, step_ind]   = model.latent_levels[0].latent.approx_post.log_var.abs().mean(dim=1).data.cpu().numpy()
-            step_prior_mean[:, 0, step_ind]     = model.latent_levels[0].latent.prior.mean.abs().mean(dim=2).mean(dim=1).data.cpu().numpy()
-            step_prior_log_var[:, 0, step_ind]  = model.latent_levels[0].latent.prior.log_var.abs().mean(dim=2).mean(dim=1).data.cpu().numpy()
+                    step_output_log_var[:, 0, step_ind] = reduce_mean(model.output_dist.log_var.data.cpu()).numpy()
+            step_mean_grad[:, 0, step_ind]      = reduce_mean(model.latent_levels[0].latent.approx_posterior_gradients()[0].abs().data.cpu()).numpy()
+            step_log_var_grad[:, 0, step_ind]   = reduce_mean(model.latent_levels[0].latent.approx_posterior_gradients()[1].abs().data.cpu()).numpy()
+            step_post_mean[:, 0, step_ind]      = reduce_mean(model.latent_levels[0].latent.approx_post.mean.abs().data.cpu()).numpy()
+            step_post_log_var[:, 0, step_ind]   = reduce_mean(model.latent_levels[0].latent.approx_post.log_var.abs().data.cpu()).numpy()
+            step_prior_mean[:, 0, step_ind]     = reduce_mean(model.latent_levels[0].latent.prior.mean.abs().data.cpu()).numpy()
+            step_prior_log_var[:, 0, step_ind]  = reduce_mean(model.latent_levels[0].latent.prior.log_var.abs().data.cpu()).numpy()
 
             if visualize:
-                step_latent_mean[:, 0, step_ind] = model.latent_levels[0].latent.approx_post.mean.data.cpu().numpy()
-                step_latent_log_var[:, 0, step_ind] = model.latent_levels[0].latent.approx_post.log_var.data.cpu().numpy()
+                # step_latent_mean[:, 0, step_ind] = model.latent_levels[0].latent.approx_post.mean.data.cpu().numpy()
+                # step_latent_log_var[:, 0, step_ind] = model.latent_levels[0].latent.approx_post.log_var.data.cpu().numpy()
 
                 step_output_mean[:, 0, step_ind] = model.output_dist.mean.data.cpu().numpy()[:, 0]
                 if type(model.output_dist) == Normal:
@@ -186,17 +189,17 @@ def run(data, model, train_config, data_config, optimizers=None, visualize=False
                 step_kl_div[:, inf_it+1, step_ind]         = kl[0].data.cpu().numpy()
                 if type(model.output_dist) == Normal:
                     if len(model.output_dist.log_var.data.shape) == 3:
-                        step_output_log_var[:, inf_it+1, step_ind] = model.output_dist.log_var.mean(dim=2).mean(dim=1).data.cpu().numpy()
-                step_mean_grad[:, inf_it+1, step_ind]      = model.latent_levels[0].latent.approx_posterior_gradients()[0].abs().mean(dim=1).data.cpu().numpy()
-                step_log_var_grad[:, inf_it+1, step_ind]   = model.latent_levels[0].latent.approx_posterior_gradients()[1].abs().mean(dim=1).data.cpu().numpy()
-                step_post_mean[:, inf_it+1, step_ind]      = model.latent_levels[0].latent.approx_post.mean.abs().mean(dim=1).data.cpu().numpy()
-                step_post_log_var[:, inf_it+1, step_ind]   = model.latent_levels[0].latent.approx_post.log_var.abs().mean(dim=1).data.cpu().numpy()
-                step_prior_mean[:, inf_it+1, step_ind]     = model.latent_levels[0].latent.prior.mean.abs().mean(dim=2).mean(dim=1).data.cpu().numpy()
-                step_prior_log_var[:, inf_it+1, step_ind]  = model.latent_levels[0].latent.prior.log_var.abs().mean(dim=2).mean(dim=1).data.cpu().numpy()
+                        step_output_log_var[:, inf_it+1, step_ind] = reduce_mean(model.output_dist.log_var.data.cpu()).numpy()
+                step_mean_grad[:, inf_it+1, step_ind]      = reduce_mean(model.latent_levels[0].latent.approx_posterior_gradients()[0].abs().data.cpu()).numpy()
+                step_log_var_grad[:, inf_it+1, step_ind]   = reduce_mean(model.latent_levels[0].latent.approx_posterior_gradients()[1].abs().data.cpu()).numpy()
+                step_post_mean[:, inf_it+1, step_ind]      = reduce_mean(model.latent_levels[0].latent.approx_post.mean.abs().data.cpu()).numpy()
+                step_post_log_var[:, inf_it+1, step_ind]   = reduce_mean(model.latent_levels[0].latent.approx_post.log_var.abs().data.cpu()).numpy()
+                step_prior_mean[:, inf_it+1, step_ind]     = reduce_mean(model.latent_levels[0].latent.prior.mean.abs().data.cpu()).numpy()
+                step_prior_log_var[:, inf_it+1, step_ind]  = reduce_mean(model.latent_levels[0].latent.prior.log_var.abs().data.cpu()).numpy()
 
                 if visualize:
-                    step_latent_mean[:, inf_it+1, step_ind] = model.latent_levels[0].latent.approx_post.mean.data.cpu().numpy()
-                    step_latent_log_var[:, inf_it+1, step_ind] = model.latent_levels[0].latent.approx_post.log_var.data.cpu().numpy()
+                    # step_latent_mean[:, inf_it+1, step_ind] = model.latent_levels[0].latent.approx_post.mean.data.cpu().numpy()
+                    # step_latent_log_var[:, inf_it+1, step_ind] = model.latent_levels[0].latent.approx_post.log_var.data.cpu().numpy()
 
                     step_output_mean[:, inf_it+1, step_ind] = model.output_dist.mean.data.cpu().numpy()[:, 0]
                     step_output_log_var[:, inf_it+1, step_ind] = model.output_dist.log_var.data.cpu().numpy()[:, 0]
@@ -284,6 +287,9 @@ def run(data, model, train_config, data_config, optimizers=None, visualize=False
         out_dict['post_log_var'][batch_ind]  = step_post_log_var.mean(axis=2).mean(axis=0)
         out_dict['prior_mean'][batch_ind]    = step_prior_mean.mean(axis=2).mean(axis=0)
         out_dict['prior_log_var'][batch_ind] = step_prior_log_var.mean(axis=2).mean(axis=0)
+
+        if batch_ind == 9:
+            break
 
     # average over the batch dimension
     for item_key in out_dict:

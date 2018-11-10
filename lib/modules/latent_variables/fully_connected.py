@@ -3,7 +3,6 @@ import torch.nn as nn
 from lib.distributions import Normal
 from latent_variable import LatentVariable
 from lib.modules.layers import FullyConnectedLayer
-from lib.modules.networks import FullyConnectedNetwork
 from lib.modules.misc import LayerNorm
 
 

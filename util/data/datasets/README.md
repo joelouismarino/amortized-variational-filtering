@@ -1,0 +1,1 @@
+Each file in this directory contains a class object for a PyTorch dataset, i.e. they inherit from PyTorch's `Dataset` class. These datasets can be used with PyTorch's `DataLoader` class to efficiently collect data in a multi-processed manner.

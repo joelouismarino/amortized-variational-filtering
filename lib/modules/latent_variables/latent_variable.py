@@ -62,6 +62,7 @@ class LatentVariable(nn.Module):
             analytical (boolean): whether to use the analytical form of the KL
                                   divergence for exact evaluation
         """
+        # import ipdb; ipdb.set_trace()
         if analytical:
             # analytical KL divergence currently only defined for Gaussians
             assert type(self.approx_post) == type(self.prior) == Normal

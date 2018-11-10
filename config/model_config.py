@@ -1,25 +1,22 @@
 model_config = {
-    'architecture': 'vrnn',
-    'inference_procedure': 'direct',
-    'modified': False,
+    'architecture': 'svg',
+    'inference_procedure': 'gradient',
+    'modified': True,
     'global_output_log_var': False,
-    'normalize_latent_samples': False,
+    'normalize_latent_samples': False
 }
 
 def clean_model_config(model_config):
-    assert model_config['inference_procedure'] in ['direct', 'gradient', 'error', 'sgd']
+    assert model_config['inference_procedure'] in ['direct', 'gradient']
 
     # update type for iterative inference ('highway', 'learned_sgd')
     # whether or not to concatenate the observation to inference model input
     # normalization type for the inputs ('layer', 'batch', None)
-    if model_config['inference_procedure'] in ['gradient', 'error']:
+    if model_config['inference_procedure'] in ['gradient']:
         model_config['update_type'] = 'learned_sgd'
         model_config['concat_observation'] = False
         model_config['input_normalization'] = 'layer'
         model_config['norm_parameters'] = True
-
-    if model_config['inference_procedure'] == 'sgd':
-        model_config['learning_rate'] = 0.01
 
     ## SVG
     if model_config['architecture'].lower() == 'svg':

@@ -70,7 +70,7 @@ class LatentVariableModel(nn.Module):
         for level_ind, latent_level in enumerate(self.latent_levels):
             analytical = (level_ind == len(self.latent_levels)-1)
             level_kl = latent_level.latent.kl_divergence(analytical)
-            for dim in range(2, len(level_kl.data.shape)):
+            for dim in range(len(level_kl.data.shape)-1, 1, -1):
                 level_kl = level_kl.sum(dim) # sum over data dimensions
             level_kl = level_kl.mean(1) # average over sample dimension
             kl.append(level_kl)

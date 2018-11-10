@@ -231,7 +231,7 @@ class SVG(LatentVariableModel):
 
             # concatenate with the observation
             if self.model_config['concat_observation']:
-                grads_params = torch.cat([grads_params, observation], dim=1)
+                grads_params = torch.cat([grads_params, observation-0.5], dim=1)
 
             return grads_params
 
@@ -247,7 +247,7 @@ class SVG(LatentVariableModel):
             params = torch.cat(self.latent_levels[0].latent.approx_posterior_parameters(), dim=1)
             latent_error_params = torch.cat([errors[1], params], dim=1)
             if self.model_config['concat_observation']:
-                latent_error_params = torch.cat([latent_error_params, observation], dim=1)
+                latent_error_params = torch.cat([latent_error_params, observation-0.5], dim=1)
             return errors[0], latent_error_params
         else:
             raise NotImplementedError

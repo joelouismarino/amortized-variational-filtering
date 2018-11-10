@@ -26,7 +26,7 @@ train_data, val_data, test_data = load_data(data_config, train_config['batch_siz
 if val_data is None:
     val_data = test_data
 
-data = train_data
+data = val_data
 
 # load the model, optimizers
 print('Loading model...')
@@ -47,7 +47,7 @@ out = visualize(data, model, train_config, data_config)
 ################################################################################
 ## plot data, predictions, and reconstructions
 
-batch_index = 10
+batch_index = 5
 plt.figure()
 
 data_shape = out['output_mean'].shape
@@ -92,6 +92,8 @@ if len(data_shape) == 6:
             plt.imshow(data[0], cmap='gray')
         plt.axis('off')
 
+plt.subplots_adjust(left=0.015, bottom=0.410, right=0.985, top=0.655, wspace=0., hspace=0.)
+plt.show()
 
 else:
     # non-image data
@@ -219,144 +221,3 @@ pred_std = np.exp(0.5 * out_log_var[batch_index, 0])
 ax.fill_between(range(out_mean.shape[2]), pred_mean - pred_std, pred_mean + pred_std, alpha=0.5, facecolor='red')
 plt.plot(data[batch_index], 'b', alpha=0.7)
 plt.axis('off')
-
-"""
-log_var = out['output_log_var'][batch_index]
-
-# visualize output mean
-for step in range(1, n_steps+1):
-
-    # prediction
-    plt.subplot(3, n_steps, step)
-    plt.imshow(out['output_log_var'][batch_index, 0, step-1].transpose(1, 2, 0))
-    plt.title('t = ' + str(step))
-    plt.axis('off')
-
-    # reconstruction
-    plt.subplot(3, n_steps, step + n_steps)
-    plt.imshow(out['output_log_var'][batch_index, 1, step-1].transpose(1, 2, 0))
-    plt.axis('off')
-
-    # data
-    plt.subplot(3, n_steps, step + 2 * n_steps)
-    plt.imshow(out['data'][batch_index, step-1].transpose(1, 2, 0))
-    plt.axis('off')
-
-
-data = out['data'][batch_index, :, 0]
-pred_mean = out['output_mean'][batch_index, 0, :, 0]
-pred_log_var = out['output_log_var'][batch_index, 0, :, 0]
-recon_mean = out['output_mean'][batch_index, 1, :, 0]
-recon_log_var = out['output_log_var'][batch_index, 1, :, 0]
-
-pred_error = np.absolute((pred_mean - data) / np.exp(pred_log_var))
-recon_error = np.absolute((recon_mean - data) / np.exp(recon_log_var))
-
-max_value = max(np.max(pred_error), np.max(recon_error))
-
-pred_error /= max_value
-recon_error /= max_value
-
-# visualize prevision weighted errors
-for step in range(1, n_steps+1):
-
-    # prediction
-    plt.subplot(3, n_steps, step)
-    plt.imshow(pred_error[step-1], cmap='gray')
-    plt.title('t = ' + str(step))
-    plt.axis('off')
-
-    # reconstruction
-    plt.subplot(3, n_steps, step + n_steps)
-    plt.imshow(recon_error[step-1], cmap='gray')
-    plt.axis('off')
-
-    # data
-    plt.subplot(3, n_steps, step + 2 * n_steps)
-    plt.imshow(out['data'][batch_index, step-1, 0], cmap='gray')
-    plt.axis('off')
-
-
-if False:
-
-    ################################################################################
-
-    ## plot data, predictions, and reconstructions
-    batch_size, n_inf_iter, n_steps, c, h, w = out['output_mean'].shape
-
-    batch_index = 10
-
-    plt.figure()
-
-    # visualize output mean
-    for step in range(1, n_steps+1):
-
-        # prediction
-        plt.subplot(3, n_steps, step)
-        plt.imshow(out['output_mean'][batch_index, 0, step-1, 0], cmap='gray')
-        plt.title('t = ' + str(step))
-        plt.axis('off')
-
-        # reconstruction
-        plt.subplot(3, n_steps, step + n_steps)
-        plt.imshow(out['output_mean'][batch_index, 1, step-1, 0], cmap='gray')
-        plt.axis('off')
-
-        # data
-        plt.subplot(3, n_steps, step + 2 * n_steps)
-        plt.imshow(out['data'][batch_index, step-1, 0], cmap='gray')
-        plt.axis('off')
-
-    # visualize output log_variance
-    for step in range(1, n_steps+1):
-
-        # prediction
-        plt.subplot(3, n_steps, step)
-        plt.imshow(out['output_log_var'][batch_index, 0, step-1, 0], cmap='gray')
-        plt.title('t = ' + str(step))
-        plt.axis('off')
-
-        # reconstruction
-        plt.subplot(3, n_steps, step + n_steps)
-        plt.imshow(out['output_log_var'][batch_index, 1, step-1, 0], cmap='gray')
-        plt.axis('off')
-
-        # data
-        plt.subplot(3, n_steps, step + 2 * n_steps)
-        plt.imshow(out['data'][batch_index, step-1, 0], cmap='gray')
-        plt.axis('off')
-
-
-    data = out['data'][batch_index, :, 0]
-    pred_mean = out['output_mean'][batch_index, 0, :, 0]
-    pred_log_var = out['output_log_var'][batch_index, 0, :, 0]
-    recon_mean = out['output_mean'][batch_index, 1, :, 0]
-    recon_log_var = out['output_log_var'][batch_index, 1, :, 0]
-
-    pred_error = np.absolute((pred_mean - data) / np.exp(pred_log_var))
-    recon_error = np.absolute((recon_mean - data) / np.exp(recon_log_var))
-
-    max_value = max(np.max(pred_error), np.max(recon_error))
-
-    pred_error /= max_value
-    recon_error /= max_value
-
-    # visualize prevision weighted errors
-    for step in range(1, n_steps+1):
-
-        # prediction
-        plt.subplot(3, n_steps, step)
-        plt.imshow(pred_error[step-1], cmap='gray')
-        plt.title('t = ' + str(step))
-        plt.axis('off')
-
-        # reconstruction
-        plt.subplot(3, n_steps, step + n_steps)
-        plt.imshow(recon_error[step-1], cmap='gray')
-        plt.axis('off')
-
-        # data
-        plt.subplot(3, n_steps, step + 2 * n_steps)
-        plt.imshow(out['data'][batch_index, step-1, 0], cmap='gray')
-        plt.axis('off')
-"""

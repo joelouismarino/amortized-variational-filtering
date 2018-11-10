@@ -105,17 +105,6 @@ def load_dataset(data_config):
         test = TIMIT(os.path.join(data_path, 'timit', 'test', 'test.p'), test_trans)
 
     ############################################################################
-    ## Handwriting datasets
-    ############################################################################
-    elif dataset_name == 'iam_ondb':
-        if not os.path.exists(os.path.join(data_path, 'iam_ondb')):
-            raise ValueError('IAM_OnDB dataset does not exist. Please manually \
-                             download the dataset by obtaining a license from \
-                             http://www.fki.inf.unibe.ch/databases/iam-on-line-handwriting-database, \
-                             then create a directory called iam_ondb in your data directory.')
-        # TODO: load IAM_OnDB
-
-    ############################################################################
     ## MIDI datasets
     ############################################################################
     elif dataset_name == 'piano_midi':
@@ -207,36 +196,8 @@ def load_dataset(data_config):
         test = MIDI(piano_roll['test'], max_min_notes, test_transforms)
 
     ############################################################################
-    ## Tracking datasets
-    ############################################################################
-    elif dataset_name == 'bball':
-        assert os.path.exists(os.path.join(data_path, 'bball')), 'Basketball data not downloaded.'
-
-        if not os.path.exists(os.path.join(data_path, 'bball', 'train', 'Xtr_role.p')):
-            print('Converting basketball dataset...')
-            from misc_data_util.convert_bball import convert
-            convert(os.path.join(data_path, 'bball'))
-
-        from datasets import Basketball
-        LENGTH = 94
-        WIDTH = 50
-        SCALE = torch.zeros(50, 2)
-        SCALE[:, 0] = LENGTH; SCALE[:, 1] = WIDTH
-        transforms = [trans.ToTensor(), trans.Normalize(25., SCALE), trans.RandomSequenceCrop(data_config['sequence_length'])]
-        transforms = trans.Compose(transforms)
-
-        train = Basketball(os.path.join(data_path, 'bball', 'train', 'Xtr_role'), transforms)
-        test = Basketball(os.path.join(data_path, 'bball', 'test', 'Xte_role'), transforms)
-
-    ############################################################################
     ## Video datasets
     ############################################################################
-    elif dataset_name == 'stochastic_moving_mnist':
-        if not os.path.exists(os.path.join(data_path, 'stochastic_moving_MNIST')):
-            os.makedirs(os.path.join(data_path, 'stochastic_moving_MNIST'))
-            # download stochastic_moving_MNIST dataset
-        # TODO: load stochastic_moving_MNIST
-
     elif dataset_name == 'kth_actions':
         if not os.path.exists(os.path.join(data_path, 'kth_actions')):
             os.makedirs(os.path.join(data_path, 'kth_actions'))
@@ -323,9 +284,6 @@ def load_dataset(data_config):
         test_trans = trans.Compose(transforms)
         train = BAIRRobotPushing(os.path.join(data_path, 'bair_robot_pushing', 'train'), train_trans)
         test  = BAIRRobotPushing(os.path.join(data_path, 'bair_robot_pushing', 'test'), test_trans)
-
-    elif dataset_name == 'youtube':
-        pass
 
     else:
         raise Exception('Dataset name not found.')
