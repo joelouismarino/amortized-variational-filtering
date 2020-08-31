@@ -1,4 +1,5 @@
 import torch
+import random
 import numpy as np
 import torchvision.transforms as torch_transforms
 from PIL import Image
@@ -14,7 +15,7 @@ class RandomRotation(object):
         self.max_angle = max_angle
 
     def __call__(self, input):
-        angle = np.random.randint(-self.max_angle, self.max_angle)
+        angle = random.randint(-self.max_angle, self.max_angle)
         if type(input) == list:
             return [im.rotate(angle) for im in input]
         return input.rotate(angle)
@@ -35,8 +36,8 @@ class RandomCrop(object):
             img = img[0]
         width, height = img.size[0], img.size[1]
         new_width, new_height = self.output_size
-        left = np.random.randint(0, width - new_width)
-        top = np.random.randint(0, height - new_height)
+        left = random.randint(0, width - new_width)
+        top = random.randint(0, height - new_height)
         if type(input) == list:
             return [im.crop((left, top, left + new_width, top + new_height)) for im in input]
         return input.crop((left, top, left + new_width, top + new_height))
@@ -50,7 +51,7 @@ class RandomHorizontalFlip(object):
         pass
 
     def __call__(self, input):
-        flip = np.random.rand() > 0.5
+        flip = random.random() > 0.5
         if flip:
             if type(input) == list:
                 return [im.transpose(Image.FLIP_LEFT_RIGHT) for im in input]
@@ -88,7 +89,7 @@ class RandomSequenceCrop(object):
             input_seq_len = input.shape[0]
         max_start_ind = input_seq_len - self.seq_len + 1
         assert max_start_ind > 0, 'Sequence length longer than input sequence length: ' + str(input_seq_len) + '.'
-        start_ind = np.random.choice(range(max_start_ind))
+        start_ind = random.choice(range(max_start_ind))
         return input[start_ind:start_ind+self.seq_len]
 
 
