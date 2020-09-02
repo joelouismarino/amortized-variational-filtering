@@ -1,6 +1,6 @@
 # Amortized Variational Filtering
 
-Code to accompany the paper [A General Method for Amortizing Variational Filtering](http://joelouismarino.github.io/research/avf_workshop_paper.pdf) by Marino et al., NIPS, 2018.
+Code to accompany the paper [A General Method for Amortizing Variational Filtering](https://arxiv.org/abs/1811.05090) by Marino et al., NeurIPS, 2018.
 
 ## Installation & Environment Set-Up
 
